@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Testimonies - Admin - GMA City Complex</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <div id="app"></div>
+    <script src="../js/app.js"></script>
+    <script src="../js/components.js"></script>
+    <script src="../js/layouts.js"></script>
+    <script src="../js/api.js"></script>
+    <script>
+    if (!requireAuth('admin')) throw new Error('Not authorized');
+    var testimonies = [];
+    var activeTab = 'Pending';
+
+    function getApprovalBadge(t) {
+        if (t.approved || t.status === 'approved') return '<span class="badge badge-success">Approved</span>';
+        if (t.status === 'rejected') return '<span class="badge badge-danger">Rejected</span>';
+        return '<span class="badge" style="background:var(--warning-bg);color:var(--warning-dark)">Pending</span>';
+    }
+
+    function getCategoryBadge(cat) {
+        var colors = { Healing: 'var(--success)', Financial: 'var(--royal-blue)', Family: 'var(--warning-dark)', Salvation: 'var(--info-dark)', 'Prayer Answered': 'var(--gray-600)' };
+        var bg = colors[cat] || 'var(--gray-400)';
+        return '<span class="badge" style="background:' + bg + ';color:#fff">' + escapeHtml(cat) + '</span>';
+    }
+
+    function getFiltered() {
+        if (activeTab === 'All') return testimonies;
+        if (activeTab === 'Approved') return testimonies.filter(function(t) { return t.approved || t.status === 'approved'; });
+        return testimonies.filter(function(t) { return !t.approved && t.status !== 'rejected'; });
+    }
+
+    function renderTabs() {
+        var tabs = ['Pending', 'Approved', 'All'];
+        var pendingCount = testimonies.filter(function(t) { return !t.approved && t.status !== 'rejected'; }).length;
+        var approvedCount = testimonies.filter(function(t) { return t.approved || t.status === 'approved'; }).length;
+        var counts = { Pending: pendingCount, Approved: approvedCount, All: testimonies.length };
+        var html = '<div class="tabs">';
+        tabs.forEach(function(tab) {
+            html += '<button class="' + (activeTab === tab ? 'tab active' : 'tab') + '" onclick="switchTab(\'' + tab + '\')">' + tab + ' <span class="badge" style="margin-left:4px">' + counts[tab] + '</span></button>';
+        });
+        return html + '</div>';
+    }
+
+    function renderCards() {
+        var filtered = getFiltered();
+        if (filtered.length === 0) return '<div class="empty-state"><p>No testimonies in this category.</p></div>';
+        var html = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:16px">';
+        filtered.forEach(function(t) {
+            html += '<div class="card"><div class="card-body">' +
+                '<div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:12px">' +
+                '<div><strong>' + escapeHtml(t.name || t.author || '') + '</strong><br><span class="text-xs text-muted">' + escapeHtml(t.date || t.createdAt || '') + '</span></div>' +
+                '<div style="display:flex;gap:4px;align-items:center">' + getCategoryBadge(t.category || t.category_type || '') + getApprovalBadge(t) + '</div></div>' +
+                '<p style="margin:0 0 16px;color:var(--gray-600);font-size:0.9rem;line-height:1.6">' + escapeHtml(t.text || t.content || t.testimony || '') + '</p>' +
+                '<div style="border-top:1px solid var(--gray-100);padding-top:12px;display:flex;gap:8px;flex-wrap:wrap">';
+            if (!t.approved && t.status !== 'approved' && t.status !== 'rejected') {
+                html += '<button class="btn btn-sm" style="background:var(--success);color:#fff" onclick="approveTestimony(' + t.id + ')">Approve</button>';
+                html += '<button class="btn btn-sm" style="background:var(--warning-dark);color:#fff" onclick="rejectTestimony(' + t.id + ')">Reject</button>';
+            }
+            html += '</div></div></div>';
+        });
+        return html + '</div>';
+    }
+
+    function render() {
+        var content = '<div class="content-header"><div><h1 class="page-title">Testimonies <span class="badge">' + testimonies.length + '</span></h1><p class="page-description">Review and manage member testimonies.</p></div></div>';
+        content += renderTabs();
+        content += '<div style="margin-top:16px">' + renderCards() + '</div>';
+        document.getElementById('app').innerHTML = renderAdminLayout('testimonies', content);
+        document.getElementById('sidebarToggle').addEventListener('click', function() { document.getElementById('sidebar').classList.toggle('open'); });
+    }
+
+    window.switchTab = function(tab) { activeTab = tab; render(); };
+    window.approveTestimony = function(id) {
+        API.testimonies.approve(id).then(function() {
+            var t = testimonies.find(function(t) { return t.id === id; });
+            if (t) { t.approved = true; t.status = 'approved'; }
+            showToast('Testimony approved', 'success');
+            render();
+        }).catch(function() { showToast('Failed to approve', 'error'); });
+    };
+    window.rejectTestimony = function(id) {
+        if (!confirm('Reject this testimony?')) return;
+        API.testimonies.reject(id).then(function() {
+            testimonies = testimonies.filter(function(t) { return t.id !== id; });
+            showToast('Testimony rejected', 'success');
+            render();
+        }).catch(function() { showToast('Failed to reject', 'error'); });
+    };
+
+    render();
+    API.testimonies.getAll({}).then(function(r) {
+        testimonies = (r && r.data) ? (Array.isArray(r.data) ? r.data : r.data.testimonies || []) : [];
+        render();
+    }).catch(function() { testimonies = []; render(); });
+    </script>
+</body>
+</html>

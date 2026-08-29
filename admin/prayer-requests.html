@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prayer Requests - Admin - GMA City Complex</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <div id="app"><div style="padding:40px;text-align:center;color:var(--gray-500)">Loading admin panel...</div></div>
+    <script src="../js/app.js"></script>
+    <script src="../js/components.js"></script>
+    <script src="../js/layouts.js"></script>
+    <script src="../js/api.js"></script>
+    <script>
+    if (!requireAuth('admin')) throw new Error('Not authorized');
+    var allPrayers = [];
+    var currentTab = 'all';
+    var prayerTeams = ['Prayer Team A', 'Prayer Team B', 'Prayer Team C'];
+
+    function getUrgencyBadge(urgency) {
+        if (urgency === 'urgent') return '<span class="badge badge-danger">Urgent</span>';
+        if (urgency === 'high') return '<span class="badge badge-warning">High</span>';
+        return '<span class="badge badge-info">Normal</span>';
+    }
+
+    function render() {
+        var filtered = currentTab === 'all' ? allPrayers : allPrayers.filter(function(p) { return p.status === currentTab; });
+        var total = allPrayers.length;
+        var received = allPrayers.filter(function(p) { return p.status === 'received'; }).length;
+        var urgent = allPrayers.filter(function(p) { return p.urgency === 'urgent'; }).length;
+        var content = '<div class="content-header"><div><h1 class="page-title">Prayer Requests <span style="font-size:0.9rem;font-weight:400;color:var(--gray-500)">(' + total + ')</span></h1></div></div>';
+        content += '<div class="stats-grid"><div class="stat-card"><div class="stat-info"><span>Total</span><strong>' + total + '</strong></div></div><div class="stat-card"><div class="stat-info"><span>Received</span><strong>' + received + '</strong></div></div><div class="stat-card"><div class="stat-info"><span>Urgent</span><strong>' + urgent + '</strong></div></div></div>';
+        content += '<div class="card"><div class="card-body"><div class="tabs" style="margin-bottom:16px;border-bottom:1px solid var(--gray-100);padding-bottom:0">';
+        ['all', 'received', 'being_prayed', 'follow_up'].forEach(function(t) { content += '<button class="tab ' + (currentTab === t ? 'active' : '') + '" onclick="window._tab(\'' + t + '\')">' + t.replace(/_/g, ' ').replace(/\b\w/g, function(l) { return l.toUpperCase(); }) + '</button>'; });
+        content += '</div><div id="prayerList">';
+        if (filtered.length === 0) content += '<div class="empty-state"><p>No prayer requests found.</p></div>';
+        else filtered.forEach(function(p) {
+            var name = p.memberName || p.member_name || p.name || 'Anonymous';
+            var email = p.email || p.member_email || '';
+            content += '<div class="card" style="margin-bottom:12px"><div class="card-body"><div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px"><div style="display:flex;align-items:center;gap:8px"><strong>#' + escapeHtml(String(p.id).substring(0, 6)) + '</strong>' + getUrgencyBadge(p.urgency) + '<span class="badge badge-primary">' + escapeHtml(p.category || 'General') + '</span></div><span class="text-xs text-muted">' + escapeHtml(p.createdAt || p.created_at || '') + '</span></div>' +
+            '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><div class="avatar" style="width:28px;height:28px;font-size:0.65rem;background:var(--royal-blue);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center">' + getInitials(name) + '</div><span style="font-weight:600">' + escapeHtml(name) + '</span>' + (email ? ' <span style="color:var(--gray-500);font-size:0.8rem">(' + escapeHtml(email) + ')</span>' : '') + '</div>' +
+            '<p style="color:var(--gray-600);font-size:0.9rem;margin-bottom:12px">' + escapeHtml(p.description || p.text || p.request || '') + '</p>' +
+            '<div style="display:flex;gap:8px;flex-wrap:wrap"><select class="form-control btn-sm" style="width:auto;padding:4px 8px;font-size:0.8rem" onchange="updateStatus(' + p.id + ', this.value)"><option value="received"' + (p.status === 'received' ? ' selected' : '') + '>Received</option><option value="being_prayed"' + (p.status === 'being_prayed' ? ' selected' : '') + '>Being Prayed</option><option value="follow_up"' + (p.status === 'follow_up' ? ' selected' : '') + '>Follow-up</option></select>' +
+            (email ? '<button class="btn btn-sm btn-primary" style="background:var(--royal-blue);color:#fff" onclick="openPrayerEmailModal(' + p.id + ',\'' + escapeHtml(email) + '\',\'' + escapeHtml(name) + '\')">Reply via Email</button>' : '') +
+            '<button class="btn btn-sm btn-primary" onclick="markAnswered(' + p.id + ')">Mark Answered</button></div></div></div>';
+        });
+        content += '</div></div></div>';
+        document.getElementById('app').innerHTML = renderAdminLayout('prayer-requests', content);
+        document.getElementById('sidebarToggle').addEventListener('click', function() { document.getElementById('sidebar').classList.toggle('open'); });
+    }
+
+    window._tab = function(t) { currentTab = t; render(); };
+    window.updateStatus = function(id, status) {
+        API.prayer.update(id, { status: status }).then(function() {
+            var p = allPrayers.find(function(p) { return p.id === id; });
+            if (p) p.status = status;
+            showToast('Status updated', 'success');
+            logFrontendAction('status_change', 'prayer', id, 'Prayer status changed to ' + status);
+            render();
+        }).catch(function() { showToast('Failed', 'error'); });
+    };
+    window.markAnswered = function(id) {
+        API.prayer.markAnswered(id).then(function() {
+            allPrayers = allPrayers.filter(function(p) { return p.id !== id; });
+            showToast('Marked as answered!', 'success');
+            logFrontendAction('update', 'prayer', id, 'Prayer marked answered');
+            render();
+        }).catch(function() { showToast('Failed', 'error'); });
+    };
+
+    function openPrayerEmailModal(prayerId, recipientEmail, recipientName) {
+        var modal = document.createElement('div');
+        modal.className = 'modal-backdrop active';
+        modal.id = 'prayerEmailModal';
+        modal.innerHTML = '<div class="modal" style="max-width:560px"><div class="modal-header"><h3>Send Email Response</h3><button class="modal-close" onclick="closePrayerEmailModal()">&times;</button></div><div class="modal-body"><form id="prayerEmailForm"><div class="form-group"><label>To</label><input type="email" id="prayerEmailTo" class="form-control" value="' + escapeHtml(recipientEmail || '') + '" readonly></div><div class="form-group"><label>Name</label><input type="text" id="prayerEmailName" class="form-control" value="' + escapeHtml(recipientName || '') + '" readonly></div><div class="form-group"><label>Subject</label><input type="text" id="prayerEmailSubject" class="form-control" value="Response regarding your prayer request" required></div><div class="form-group"><label>Message</label><textarea id="prayerEmailMessage" class="form-control" rows="5" required placeholder="Type your response here..."></textarea></div><div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px"><button type="button" class="btn" style="background:var(--gray-100);color:var(--gray-700)" onclick="closePrayerEmailModal()">Cancel</button><button type="submit" class="btn btn-primary">Send Email</button></div></form></div></div>';
+        document.body.appendChild(modal);
+        document.getElementById('prayerEmailForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            var btn = modal.querySelector('button[type="submit"]');
+            btn.textContent = 'Sending...';
+            btn.disabled = true;
+            API.notifications.sendEmail({
+                to: document.getElementById('prayerEmailTo').value,
+                name: document.getElementById('prayerEmailName').value,
+                subject: document.getElementById('prayerEmailSubject').value,
+                message: document.getElementById('prayerEmailMessage').value,
+                type: 'prayer',
+                referenceId: 'Prayer #' + prayerId
+            }).then(function() {
+                showToast('Email sent successfully', 'success');
+                closePrayerEmailModal();
+            }).catch(function() {
+                showToast('Failed to send email', 'error');
+                btn.textContent = 'Send Email';
+                btn.disabled = false;
+            });
+        });
+    }
+
+    window.closePrayerEmailModal = function() {
+        var modal = document.getElementById('prayerEmailModal');
+        if (modal) modal.remove();
+    };
+
+    window.sendAutoResponseToPrayer = function(prayerId, recipientEmail, recipientName) {
+        if (!recipientEmail) {
+            showToast('No email address available for this prayer request', 'error');
+            return;
+        }
+        if (confirm('Send auto-response email to ' + recipientEmail + '?')) {
+            API.notifications.sendEmail({
+                to: recipientEmail,
+                name: recipientName || 'Friend',
+                type: 'prayer',
+                referenceId: 'Prayer #' + prayerId,
+                sendAutoResponse: true
+            }).then(function() {
+                showToast('Auto-response sent', 'success');
+            }).catch(function() {
+                showToast('Failed to send auto-response', 'error');
+            });
+        }
+    };
+
+    API.prayer.getAll({}).then(function(r) {
+        allPrayers = (r && r.data) ? (Array.isArray(r.data) ? r.data : r.data.prayers || []) : [];
+        render();
+    }).catch(function() { allPrayers = []; render(); });
+    </script>
+</body>
+</html>

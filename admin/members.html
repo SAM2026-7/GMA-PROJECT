@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Members - GMA City Complex Admin</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <div id="app"></div>
+    <script src="../js/app.js"></script>
+    <script src="../js/components.js"></script>
+    <script src="../js/layouts.js"></script>
+    <script src="../js/api.js"></script>
+    <script>
+    if (!requireAuth('admin')) throw new Error('Not authorized');
+    var allMembers = [];
+    var searchTerm = '';
+    var currentFilter = 'all';
+
+    function getMemberStatusBadge(status) {
+        if (status === 'active') return '<span class="badge badge-success">Active</span>';
+        if (status === 'inactive') return '<span class="badge badge-secondary">Inactive</span>';
+        return '<span class="badge badge-info">' + escapeHtml(status || 'Active') + '</span>';
+    }
+
+    function getInitials(name) {
+        if (!name) return '?';
+        return name.split(' ').map(function(w) { return w.charAt(0); }).join('').toUpperCase().substring(0, 2);
+    }
+
+    function renderMembersTable(members) {
+        var rows = '';
+        members.forEach(function(m) {
+            var name = m.name || (m.firstName || '') + ' ' + (m.lastName || '');
+            var joined = m.joined || m.createdAt || m.created_at || '';
+            rows += '<tr><td><strong>#' + escapeHtml(String(m.id).substring(0, 6)) + '</strong></td>' +
+                '<td><div style="display:flex;align-items:center;gap:8px"><div class="avatar" style="width:32px;height:32px;font-size:0.75rem;background:var(--royal-blue);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center">' + getInitials(name) + '</div>' + escapeHtml(name) + '</div></td>' +
+                '<td>' + escapeHtml(m.email || '') + '</td><td>' + escapeHtml(m.phone || '') + '</td>' +
+                '<td>' + escapeHtml(m.branch || '') + '</td><td>' + getMemberStatusBadge(m.status) + '</td>' +
+                '<td>' + escapeHtml(joined ? new Date(joined).toLocaleDateString() : '') + '</td>' +
+                '<td><div style="display:flex;gap:4px;flex-wrap:wrap"><button class="btn btn-sm btn-primary" onclick="viewMember(\'' + m.id + '\')">View</button><button class="btn btn-sm" style="background:var(--gray-100);color:var(--gray-700)" onclick="editMember(' + m.id + ')">Edit</button></div></td></tr>';
+        });
+        return rows;
+    }
+
+    function render() {
+        var filtered = getFilteredMembers();
+        var total = allMembers.length;
+        var active = allMembers.filter(function(m) { return (m.status || 'active') === 'active'; }).length;
+        var content = '<div class="content-header"><div><h1 class="page-title">Members <span style="font-size:0.9rem;font-weight:400;color:var(--gray-500)">(' + total + ')</span></h1><p class="page-description">Manage church member accounts.</p></div></div>';
+        content += '<div class="stats-grid"><div class="stat-card"><div class="stat-info"><span>Total Members</span><strong>' + total + '</strong></div></div><div class="stat-card"><div class="stat-info"><span>Active</span><strong>' + active + '</strong></div></div><div class="stat-card"><div class="stat-info"><span>Inactive</span><strong>' + (total - active) + '</strong></div></div></div>';
+        content += '<div class="card"><div class="card-body"><div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;align-items:center"><div class="search-box" style="flex:1;min-width:200px"><input type="text" id="memberSearch" placeholder="Search by name, email, or phone..." value="' + escapeHtml(searchTerm) + '" oninput="handleSearch(this.value)" style="width:100%;padding:10px 14px;border:1px solid var(--gray-200);border-radius:var(--radius);font-size:0.9rem;background:var(--gray-50);outline:none"></div><div style="display:flex;gap:4px"><button class="btn btn-sm filter-btn ' + (currentFilter === 'all' ? 'active' : '') + '" onclick="handleFilter(\'all\', this)">All</button><button class="btn btn-sm filter-btn ' + (currentFilter === 'active' ? 'active' : '') + '" onclick="handleFilter(\'active\', this)">Active</button><button class="btn btn-sm filter-btn ' + (currentFilter === 'inactive' ? 'active' : '') + '" onclick="handleFilter(\'inactive\', this)">Inactive</button></div></div><div class="table-wrap"><table class="table"><thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Phone</th><th>Branch</th><th>Status</th><th>Joined</th><th>Actions</th></tr></thead><tbody id="membersTableBody">' + renderMembersTable(filtered) + '</tbody></table></div><div style="padding:12px 0;text-align:center;color:var(--gray-500);font-size:0.85rem" id="membersCount">Showing ' + filtered.length + ' of ' + total + ' members</div></div></div>';
+        content += '<div class="modal-backdrop" id="memberModal"><div class="modal" style="max-width:560px"><div class="modal-header"><h3 id="memberModalTitle">Edit Member</h3><button class="modal-close" onclick="closeModal(\'memberModal\')">&times;</button></div><div class="modal-body">' +
+            '<div class="form-group"><label>Name</label><input type="text" id="memberName" class="form-control"></div>' +
+            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px"><div class="form-group"><label>Email</label><input type="email" id="memberEmail" class="form-control"></div><div class="form-group"><label>Phone</label><input type="text" id="memberPhone" class="form-control"></div></div>' +
+            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px"><div class="form-group"><label>Branch</label><input type="text" id="memberBranch" class="form-control"></div><div class="form-group"><label>Status</label><select id="memberStatus" class="form-control"><option value="active">Active</option><option value="inactive">Inactive</option></select></div></div>' +
+            '</div><div class="modal-footer"><button class="btn btn-ghost btn-sm" onclick="closeModal(\'memberModal\')">Cancel</button><button class="btn btn-primary btn-sm" onclick="saveMember()">Save</button></div></div></div>';
+        document.getElementById('app').innerHTML = renderAdminLayout('members', content);
+        document.getElementById('sidebarToggle').addEventListener('click', function() { document.getElementById('sidebar').classList.toggle('open'); });
+    }
+
+    function getFilteredMembers() {
+        var term = searchTerm.toLowerCase();
+        return allMembers.filter(function(m) {
+            var name = (m.name || (m.firstName || '') + ' ' + (m.lastName || '')).toLowerCase();
+            var matchesSearch = !term || name.indexOf(term) !== -1 || (m.email || '').toLowerCase().indexOf(term) !== -1 || (m.phone || '').indexOf(term) !== -1;
+            var matchesFilter = currentFilter === 'all' || m.status === currentFilter || (!m.status && currentFilter === 'active');
+            return matchesSearch && matchesFilter;
+        });
+    }
+
+    function handleSearch(value) { searchTerm = value; render(); }
+    function handleFilter(filter, btn) {
+        currentFilter = filter;
+        document.querySelectorAll('.filter-btn').forEach(function(b) { b.classList.remove('active'); });
+        if (btn) btn.classList.add('active');
+        render();
+    }
+
+    window.viewMember = function(id) {
+        var m = allMembers.find(function(m) { return String(m.id) === String(id); });
+        if (!m) return;
+        var name = m.name || (m.firstName || '') + ' ' + (m.lastName || '');
+        logFrontendAction('view', 'member', String(m.id), 'Viewed member: ' + name);
+        showToast('Member details: ' + name, 'info');
+    };
+
+    window.editMember = function(id) {
+        var m = allMembers.find(function(m) { return String(m.id) === String(id); });
+        if (!m) return;
+        document.getElementById('memberModalTitle').textContent = 'Edit Member';
+        document.getElementById('memberName').value = m.name || (m.firstName || '') + ' ' + (m.lastName || '');
+        document.getElementById('memberEmail').value = m.email || '';
+        document.getElementById('memberPhone').value = m.phone || '';
+        document.getElementById('memberBranch').value = m.branch || '';
+        document.getElementById('memberStatus').value = m.status || 'active';
+        showModal('memberModal');
+        window._editingMemberId = id;
+    };
+
+    window.saveMember = function() {
+        var data = {
+            name: document.getElementById('memberName').value.trim(),
+            email: document.getElementById('memberEmail').value.trim(),
+            phone: document.getElementById('memberPhone').value.trim(),
+            church_branch: document.getElementById('memberBranch').value.trim(),
+            status: document.getElementById('memberStatus').value
+        };
+        if (!data.name || !data.email) { showToast('Name and email required', 'error'); return; }
+        var id = window._editingMemberId;
+        if (!id) { showToast('No member selected', 'error'); return; }
+        API.members.update(id, data).then(function() {
+            closeModal('memberModal');
+            showToast('Member updated', 'success');
+            logFrontendAction('update', 'member', id, 'Updated member: ' + data.name);
+            loadMembers();
+        }).catch(function() { showToast('Failed to update member', 'error'); });
+    };
+
+    function loadMembers() {
+        API.members.getAll({}).then(function(r) {
+            allMembers = (r && r.data) ? (Array.isArray(r.data) ? r.data : r.data.members || []) : [];
+            render();
+        }).catch(function() { allMembers = []; render(); });
+    }
+
+    render();
+    loadMembers();
+    </script>
+</body>
+</html>

@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notifications - GMA City Complex</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <div id="app"></div>
+    <script src="../js/app.js"></script>
+    <script src="../js/components.js"></script>
+    <script src="../js/layouts.js"></script>
+    <script src="../js/api.js"></script>
+    <script>
+    if (!requireMember()) throw new Error('Not authorized');
+    var allNotifs = [];
+    var activeTab = 'all';
+
+    function render() {
+        var filtered = activeTab === 'all' ? allNotifs : allNotifs.filter(function(n) { return !n.isRead && !n.read; });
+        var content = '<div class="content-header"><div><h1 class="page-title">Notifications</h1></div><button class="btn btn-sm" style="background:var(--gray-100)" onclick="markAllRead()">Mark All as Read</button></div>';
+        content += '<div class="tabs"><button class="tab ' + (activeTab === 'all' ? 'active' : '') + '" onclick="window._tab(\'all\')">All</button><button class="tab ' + (activeTab === 'unread' ? 'active' : '') + '" onclick="window._tab(\'unread\')">Unread</button></div>';
+        if (filtered.length === 0) content += '<div class="empty-state"><p>No notifications.</p></div>';
+        else filtered.forEach(function(n) {
+            var isRead = n.isRead || n.read;
+            content += '<div class="card" style="margin-bottom:8px' + (!isRead ? ';border-left:3px solid var(--royal-blue)' : '') + '"><div class="card-body" style="padding:14px 20px;display:flex;align-items:start;gap:12px"><div style="flex:1"><p class="text-sm" style="margin:0">' + escapeHtml(n.message || n.title || n.text || '') + '</p><p class="text-xs text-muted" style="margin:4px 0 0">' + escapeHtml(n.createdAt || n.created_at || n.time || '') + '</p></div>' + (!isRead ? '<button class="btn btn-xs" style="background:var(--royal-pale);color:var(--royal-blue);font-size:0.75rem" onclick="markRead(' + n.id + ')">Mark Read</button>' : '') + '</div></div>';
+        });
+        document.getElementById('app').innerHTML = renderMemberLayout('notifications', content);
+        document.getElementById('sidebarToggle').addEventListener('click', function() { document.getElementById('sidebar').classList.toggle('open'); });
+    }
+
+    window._tab = function(t) { activeTab = t; render(); };
+    window.markRead = function(id) {
+        API.notifications.markRead(id).then(function() {
+            var n = allNotifs.find(function(n) { return n.id === id; });
+            if (n) { n.isRead = true; n.read = true; }
+            render();
+        }).catch(function() { render(); });
+    };
+    window.markAllRead = function() {
+        API.notifications.markAllRead().then(function() {
+            allNotifs.forEach(function(n) { n.isRead = true; n.read = true; });
+            showToast('All notifications marked as read', 'success');
+            render();
+        }).catch(function() { render(); });
+    };
+    render();
+    API.notifications.getAll({}).then(function(r) {
+        allNotifs = (r && r.data) ? (Array.isArray(r.data) ? r.data : r.data.notifications || []) : [];
+        render();
+    }).catch(function() { allNotifs = []; render(); });
+    </script>
+</body>
+</html>

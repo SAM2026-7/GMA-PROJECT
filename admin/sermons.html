@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sermons - Admin - GMA City Complex</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <div id="app"></div>
+    <script src="../js/app.js"></script>
+    <script src="../js/components.js"></script>
+    <script src="../js/layouts.js"></script>
+    <script src="../js/api.js"></script>
+    <script>
+    if (!requireAuth('admin')) throw new Error('Not authorized');
+    var allSermons = [];
+    var editingId = null;
+
+    function getCategoryBadge(cat) {
+        var colors = { Faith: 'var(--royal-blue)', Prayer: 'var(--success)', Healing: 'var(--warning-dark)', Family: 'var(--info-dark)', 'Spiritual Growth': 'var(--gray-600)' };
+        return '<span class="badge" style="background:' + (colors[cat] || 'var(--gray-400)') + ';color:#fff">' + escapeHtml(cat || '') + '</span>';
+    }
+
+    function render() {
+        var content = '<div class="content-header"><div><h1 class="page-title">Sermons <span class="badge">' + allSermons.length + '</span></h1></div><div><button class="btn btn-primary" onclick="openModal(null)">+ Add Sermon</button></div></div>';
+        if (allSermons.length === 0) content += '<div class="empty-state"><p>No sermons found.</p></div>';
+        else {
+            content += '<div class="card"><div class="card-body" style="padding:0"><div class="table-wrap"><table class="table"><thead><tr><th>Title</th><th>Speaker</th><th>Date</th><th>Scripture</th><th>Category</th><th>Actions</th></tr></thead><tbody>';
+            allSermons.forEach(function(s) {
+                content += '<tr><td><strong>' + escapeHtml(s.title || '') + '</strong></td><td>' + escapeHtml(s.speaker || '') + '</td><td>' + escapeHtml(s.date || s.sermonDate || '') + '</td><td>' + escapeHtml(s.scriptureReference || s.bibleRef || '') + '</td><td>' + getCategoryBadge(s.category) + '</td><td><div style="display:flex;gap:4px"><button class="btn btn-sm btn-primary" onclick="openModal(' + s.id + ')">Edit</button><button class="btn btn-sm" style="background:var(--danger-bg);color:var(--danger-dark)" onclick="deleteSermon(' + s.id + ')">Delete</button></div></td></tr>';
+            });
+            content += '</tbody></table></div></div></div>';
+        }
+        content += '<div class="modal-backdrop" id="sermonModal"><div class="modal" style="max-width:600px"><div class="modal-header"><h3 id="sermonModalTitle">Add Sermon</h3><button class="modal-close" onclick="closeModal(\'sermonModal\')">&times;</button></div><div class="modal-body">' +
+            '<div class="form-group"><label>Title</label><input type="text" id="srmTitle" class="form-control"></div>' +
+            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px"><div class="form-group"><label>Speaker</label><input type="text" id="srmSpeaker" class="form-control"></div><div class="form-group"><label>Date</label><input type="date" id="srmDate" class="form-control"></div></div>' +
+            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px"><div class="form-group"><label>Scripture Reference</label><input type="text" id="srmBibleRef" class="form-control" placeholder="John 3:16"></div><div class="form-group"><label>Category</label><select id="srmCategory" class="form-control"><option value="Faith">Faith</option><option value="Prayer">Prayer</option><option value="Healing">Healing</option><option value="Family">Family</option><option value="Spiritual Growth">Spiritual Growth</option></select></div></div>' +
+            '<div class="form-group"><label>Description</label><textarea id="srmDescription" class="form-control" rows="3"></textarea></div>' +
+            '</div><div class="modal-footer"><button class="btn btn-ghost btn-sm" onclick="closeModal(\'sermonModal\')">Cancel</button><button class="btn btn-primary btn-sm" onclick="saveSermon()">Save</button></div></div></div>';
+        document.getElementById('app').innerHTML = renderAdminLayout('sermons', content);
+        document.getElementById('sidebarToggle').addEventListener('click', function() { document.getElementById('sidebar').classList.toggle('open'); });
+    }
+
+    function openModal(id) {
+        editingId = id;
+        if (id) {
+            var s = allSermons.find(function(s) { return s.id === id; });
+            document.getElementById('sermonModalTitle').textContent = 'Edit Sermon';
+            document.getElementById('srmTitle').value = s.title || '';
+            document.getElementById('srmSpeaker').value = s.speaker || '';
+            document.getElementById('srmDate').value = s.date || s.sermonDate || '';
+            document.getElementById('srmBibleRef').value = s.scriptureReference || s.bibleRef || '';
+            document.getElementById('srmCategory').value = s.category || 'Faith';
+            document.getElementById('srmDescription').value = s.description || '';
+        } else {
+            document.getElementById('sermonModalTitle').textContent = 'Add Sermon';
+            document.getElementById('srmTitle').value = '';
+            document.getElementById('srmSpeaker').value = '';
+            document.getElementById('srmDate').value = '';
+            document.getElementById('srmBibleRef').value = '';
+            document.getElementById('srmCategory').value = 'Faith';
+            document.getElementById('srmDescription').value = '';
+        }
+        showModal('sermonModal');
+    }
+
+    function saveSermon() {
+        var data = {
+            title: document.getElementById('srmTitle').value.trim(),
+            speaker: document.getElementById('srmSpeaker').value.trim(),
+            date: document.getElementById('srmDate').value,
+            sermonDate: document.getElementById('srmDate').value,
+            scriptureReference: document.getElementById('srmBibleRef').value.trim(),
+            bibleRef: document.getElementById('srmBibleRef').value.trim(),
+            category: document.getElementById('srmCategory').value,
+            description: document.getElementById('srmDescription').value.trim()
+        };
+        if (!data.title || !data.speaker) { showToast('Title and speaker required', 'error'); return; }
+        var promise = editingId ? API.sermons.update(editingId, data) : API.sermons.create(data);
+        promise.then(function() { closeModal('sermonModal'); showToast(editingId ? 'Sermon updated' : 'Sermon created', 'success'); logFrontendAction(editingId ? 'update' : 'create', 'sermon', editingId || 'new', data.title); loadSermons(); }).catch(function() { showToast('Failed', 'error'); });
+    }
+
+    function deleteSermon(id) {
+        if (!confirm('Delete this sermon?')) return;
+        API.sermons.delete(id).then(function() { showToast('Sermon deleted', 'success'); logFrontendAction('delete', 'sermon', id, 'Sermon deleted'); loadSermons(); }).catch(function() { showToast('Failed', 'error'); });
+    }
+
+    function loadSermons() {
+        API.sermons.getAll({}).then(function(r) {
+            allSermons = (r && r.data) ? (Array.isArray(r.data) ? r.data : r.data.sermons || []) : [];
+            render();
+        }).catch(function() { allSermons = []; render(); });
+    }
+    loadSermons();
+    </script>
+</body>
+</html>

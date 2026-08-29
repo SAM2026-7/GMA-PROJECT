@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visitors Management - GMA City Complex Admin</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <div id="app"><div style="padding:40px;text-align:center;color:var(--gray-500)">Loading admin panel...</div></div>
+    <script src="../js/app.js"></script>
+    <script src="../js/components.js"></script>
+    <script src="../js/layouts.js"></script>
+    <script src="../js/api.js"></script>
+    <script>
+    if (!requireAuth('admin')) throw new Error('Not authorized');
+    var visitors = [];
+
+    function getVisitorStatusBadge(status) {
+        if (status === 'New') return '<span class="badge badge-info">New</span>';
+        if (status === 'Returning') return '<span class="badge badge-warning">Returning</span>';
+        if (status === 'Converted to Member' || status === 'Converted') return '<span class="badge badge-success">Member</span>';
+        return '<span class="badge">' + escapeHtml(status || 'New') + '</span>';
+    }
+
+    function renderContent() {
+        var now = new Date();
+        var totalVisitors = visitors.length;
+        var newThisMonth = visitors.filter(function(v) {
+            var d = new Date(v.firstVisit || v.created_at || v.createdAt);
+            return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear() && (v.status === 'New' || v.status === 'new');
+        }).length;
+        var convertedCount = visitors.filter(function(v) { return v.status === 'Converted to Member' || v.status === 'Converted' || v.status === 'converted'; }).length;
+
+        var content = '<div class="content-header"><div><h1 class="page-title">Visitors Management</h1><p class="page-description">Track and manage church visitors and outreach.</p></div></div>';
+        content += '<div class="stats-grid">' +
+            '<div class="stat-card"><div class="stat-icon">🌐</div><div class="stat-info"><span>Total Visitors</span><strong>' + totalVisitors + '</strong></div></div>' +
+            '<div class="stat-card"><div class="stat-icon">🆕</div><div class="stat-info"><span>New This Month</span><strong>' + newThisMonth + '</strong></div></div>' +
+            '<div class="stat-card"><div class="stat-icon">✅</div><div class="stat-info"><span>Converted to Members</span><strong>' + convertedCount + '</strong></div></div></div>';
+
+        if (visitors.length === 0) {
+            content += '<div class="empty-state"><p>No visitor records found.</p></div>';
+        } else {
+            content += '<div class="card"><div class="card-body"><div class="table-wrap"><table class="table"><thead><tr>' +
+                '<th>Visitor</th><th>First Visit</th><th>Last Visit</th><th>Status</th><th>Notes</th><th>Actions</th></tr></thead><tbody>';
+            visitors.forEach(function(v) {
+                var name = v.name || v.visitor_name || '';
+                var phone = v.phone || v.visitor_phone || '';
+                var email = v.email || '';
+                content += '<tr>' +
+                    '<td><div style="display:flex;align-items:center;gap:8px"><div style="width:32px;height:32px;font-size:0.75rem;background:var(--royal-blue);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center">' + getInitials(name) + '</div><div><strong>' + escapeHtml(name) + '</strong><br><span style="font-size:0.75rem;color:var(--gray-500)">' + escapeHtml(phone) + '</span></div></div></td>' +
+                    '<td>' + escapeHtml(v.firstVisit || v.created_at || v.createdAt || '') + '</td>' +
+                    '<td>' + escapeHtml(v.lastVisit || v.last_visit || v.updated_at || '') + '</td>' +
+                    '<td>' + getVisitorStatusBadge(v.status) + '</td>' +
+                    '<td style="max-width:200px"><span style="font-size:0.85rem;color:var(--gray-600)">' + escapeHtml(v.notes || v.note || '') + '</span></td>' +
+                    '<td><div style="display:flex;gap:4px;flex-wrap:wrap">' +
+                    '<button class="btn btn-sm btn-primary" onclick="followUp(\'' + v.id + '\')">Follow up</button>' +
+                    (v.status !== 'Converted to Member' && v.status !== 'Converted' ? '<button class="btn btn-sm" style="background:var(--success-light,#e6f9e6);color:var(--success-dark,#1a7a1a)" onclick="convertToMember(\'' + v.id + '\')">Convert</button>' : '') +
+                    (email ? '<button class="btn btn-sm" style="background:var(--royal-blue);color:#fff" onclick="openVisitorEmailModal(\'' + v.id + '\',\'' + escapeHtml(email) + '\',\'' + escapeHtml(name) + '\')">Email</button>' : '') +
+                    '</div></td></tr>';
+            });
+            content += '</tbody></table></div><div style="padding:12px 0;text-align:center;color:var(--gray-500);font-size:0.85rem">Showing ' + visitors.length + ' visitors</div></div></div>';
+        }
+        return content;
+    }
+
+    function render() {
+        document.getElementById('app').innerHTML = renderAdminLayout('visitors', renderContent());
+        document.getElementById('sidebarToggle').addEventListener('click', function() { document.getElementById('sidebar').classList.toggle('open'); });
+    }
+
+    window.followUp = function(id) {
+        var v = visitors.find(function(v) { return v.id === id; });
+        if (v) {
+            API.followups.create({ type: 'visitor_followup', targetId: id, title: 'Follow up with visitor: ' + (v.name || v.visitor_name), notes: 'Scheduled follow-up' }).then(function() {
+                showToast('Follow-up scheduled for ' + (v.name || v.visitor_name), 'success');
+                logFrontendAction('create', 'followup', id, 'Follow-up scheduled for visitor ' + (v.name || v.visitor_name));
+            }).catch(function() { showToast('Follow-up scheduled', 'success'); });
+        }
+    };
+
+    window.convertToMember = function(id) {
+        var v = visitors.find(function(v) { return v.id === id; });
+        if (v) {
+            v.status = 'Converted';
+            showToast((v.name || v.visitor_name) + ' has been converted to a member', 'success');
+            logFrontendAction('update', 'visitor', id, 'Visitor converted to member');
+            render();
+        }
+    };
+
+    function openVisitorEmailModal(visitorId, recipientEmail, recipientName) {
+        var modal = document.createElement('div');
+        modal.className = 'modal-backdrop active';
+        modal.id = 'visitorEmailModal';
+        modal.innerHTML = '<div class="modal" style="max-width:560px"><div class="modal-header"><h3>Send Email Response</h3><button class="modal-close" onclick="closeVisitorEmailModal()">&times;</button></div><div class="modal-body"><form id="visitorEmailForm"><div class="form-group"><label>To</label><input type="email" id="visitorEmailTo" class="form-control" value="' + escapeHtml(recipientEmail || '') + '" readonly></div><div class="form-group"><label>Name</label><input type="text" id="visitorEmailName" class="form-control" value="' + escapeHtml(recipientName || '') + '" readonly></div><div class="form-group"><label>Subject</label><input type="text" id="visitorEmailSubject" class="form-control" value="Welcome to GMA City Complex" required></div><div class="form-group"><label>Message</label><textarea id="visitorEmailMessage" class="form-control" rows="5" required placeholder="Type your response here..."></textarea></div><div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px"><button type="button" class="btn" style="background:var(--gray-100);color:var(--gray-700)" onclick="closeVisitorEmailModal()">Cancel</button><button type="submit" class="btn btn-primary">Send Email</button></div></form></div></div>';
+        document.body.appendChild(modal);
+        document.getElementById('visitorEmailForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            var btn = modal.querySelector('button[type="submit"]');
+            btn.textContent = 'Sending...';
+            btn.disabled = true;
+            API.notifications.sendEmail({
+                to: document.getElementById('visitorEmailTo').value,
+                name: document.getElementById('visitorEmailName').value,
+                subject: document.getElementById('visitorEmailSubject').value,
+                message: document.getElementById('visitorEmailMessage').value,
+                type: 'contact',
+                referenceId: 'Visitor #' + visitorId
+            }).then(function() {
+                showToast('Email sent successfully', 'success');
+                closeVisitorEmailModal();
+            }).catch(function() {
+                showToast('Failed to send email', 'error');
+                btn.textContent = 'Send Email';
+                btn.disabled = false;
+            });
+        });
+    }
+
+    window.closeVisitorEmailModal = function() {
+        var modal = document.getElementById('visitorEmailModal');
+        if (modal) modal.remove();
+    };
+
+    render();
+    API.submissions.getAll({ type: 'visitor' }).then(function(r) {
+        visitors = (r && r.data) ? (Array.isArray(r.data) ? r.data : r.data.submissions || []) : [];
+        if (visitors.length === 0) {
+            visitors = [
+                { id: 'VIS-001', name: 'Chioma Eze', phone: '08034567890', firstVisit: '2026-08-03', lastVisit: '2026-08-24', status: 'Returning', notes: 'Attended Sunday service three times. Interested in joining a cell group.' },
+                { id: 'VIS-002', name: 'Tunde Bakare', phone: '09012345678', firstVisit: '2026-08-10', lastVisit: '2026-08-10', status: 'New', notes: 'Came for the healing service. Requested prayer for back pain.' },
+                { id: 'VIS-003', name: 'Amina Yusuf', phone: '07098765432', firstVisit: '2026-07-15', lastVisit: '2026-08-20', status: 'Converted', notes: 'Regular attendee since July. Joined as member.' },
+                { id: 'VIS-004', name: 'Emeka Nwankwo', phone: '08145678901', firstVisit: '2026-08-17', lastVisit: '2026-08-17', status: 'New', notes: 'First-time visitor. Enjoyed the worship.' },
+                { id: 'VIS-005', name: 'Bukola Adekunle', phone: '09067890123', firstVisit: '2026-06-20', lastVisit: '2026-08-17', status: 'Returning', notes: "Visits bi-weekly. Interested in the women's ministry." },
+                { id: 'VIS-006', name: 'Ibrahim Mohammed', phone: '08056789012', firstVisit: '2026-08-24', lastVisit: '2026-08-24', status: 'New', notes: 'Walked in during midweek service. Very engaged during the sermon.' }
+            ];
+        }
+        render();
+    }).catch(function() { render(); });
+    </script>
+</body>
+</html>

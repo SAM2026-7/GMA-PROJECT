@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat With Us - GMA City Complex</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <div id="navContainer"></div>
+    <div class="page-header">
+        <div class="container">
+            <h1>Chat With Us</h1>
+            <p>Connect with our pastors and counselors through private conversations.</p>
+            <div class="breadcrumb"><a href="/index.html">Home</a><span>/</span><span>Chat</span></div>
+        </div>
+    </div>
+    <section class="section">
+        <div class="container">
+            <div id="authMessage" style="display:none">
+                <div class="empty-state">
+                    <div class="empty-icon">&#128172;</div>
+                    <h3>Please Login to Chat</h3>
+                    <p>You need to be logged in to access the chat feature and connect with our team.</p>
+                    <div style="display:flex;gap:12px;justify-content:center;margin-top:24px">
+                        <a href="login.html" class="btn btn-primary btn-lg">Login</a>
+                        <a href="register.html" class="btn btn-secondary btn-lg">Register</a>
+                    </div>
+                </div>
+            </div>
+            <div id="chatContainer" style="display:none">
+                <div class="chat-layout">
+                    <div class="chat-sidebar">
+                        <div style="padding:16px;border-bottom:1px solid var(--gray-200)">
+                            <h3 style="margin:0;font-size:1rem">Conversations</h3>
+                        </div>
+                        <div class="chat-list" id="chatList"></div>
+                    </div>
+                    <div class="chat-main" id="chatMain">
+                        <div class="empty-state" id="noChatSelected">
+                            <div class="empty-icon">&#128172;</div>
+                            <h3>Select a Conversation</h3>
+                            <p>Choose a conversation from the sidebar to start chatting.</p>
+                        </div>
+                        <div id="activeChat" style="display:none;height:100%;flex-direction:column">
+                            <div class="chat-header" id="chatHeader"></div>
+                            <div class="chat-messages" id="chatMessages"></div>
+                            <div class="chat-input" id="chatInputArea">
+                                <input type="text" id="chatInput" class="form-control" placeholder="Type your message..." autocomplete="off">
+                                <button class="btn btn-primary" id="sendBtn" onclick="sendMessage()">&#10148;</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    <div id="footerContainer"></div>
+    <script src="../js/app.js"></script>
+    <script src="../js/api.js"></script>
+    <script>
+    document.getElementById('navContainer').innerHTML = renderPublicNav('');
+    document.getElementById('footerContainer').innerHTML = renderFooter();
+    setupNavigation();
+
+    var user = getUser();
+    var selectedChatId = null;
+    var conversations = [];
+    var messages = {};
+
+    if (!user) {
+        document.getElementById('authMessage').style.display = 'block';
+        document.getElementById('chatContainer').style.display = 'none';
+    } else {
+        document.getElementById('authMessage').style.display = 'none';
+        document.getElementById('chatContainer').style.display = 'block';
+        loadConversations();
+    }
+
+    function loadConversations() {
+        API.chat.byMember(user.id).then(function(r) {
+            conversations = (r && r.data) ? (Array.isArray(r.data) ? r.data : r.data.conversations || []) : [];
+            if (conversations.length === 0) {
+                document.getElementById('chatList').innerHTML = '<div class="empty-state" style="padding:40px 16px"><p>No conversations yet.</p></div>';
+                return;
+            }
+            renderChatList();
+            if (conversations.length > 0) selectChat(conversations[0].id);
+        }).catch(function() {
+            document.getElementById('chatList').innerHTML = '<div class="empty-state" style="padding:40px 16px"><p>No conversations yet.</p></div>';
+        });
+    }
+
+    function renderChatList() {
+        var list = document.getElementById('chatList');
+        list.innerHTML = '';
+        conversations.forEach(function(conv) {
+            var otherName = conv.member_name || conv.counselor_name || 'Conversation';
+            var isActive = selectedChatId === conv.id;
+            var item = document.createElement('div');
+            item.className = 'chat-list-item' + (isActive ? ' active' : '');
+            item.onclick = function() { selectChat(conv.id); };
+            item.innerHTML = '<div class="avatar">' + getInitials(otherName) + '</div>' +
+                '<div style="flex:1;min-width:0">' +
+                    '<div style="display:flex;justify-content:space-between;align-items:center">' +
+                        '<strong style="font-size:0.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + escapeHtml(otherName) + '</strong>' +
+                        '<span class="chat-time-stamp">' + (conv.last_message_at ? new Date(conv.last_message_at).toLocaleDateString() : '') + '</span>' +
+                    '</div>' +
+                    '<p style="margin:4px 0 0;font-size:0.8rem;color:var(--gray-500);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + escapeHtml(conv.last_message || '') + '</p>' +
+                '</div>' +
+                ((conv.member_unread > 0 || conv.counselor_unread > 0) ? '<span class="badge badge-primary" style="margin-left:8px">' + (conv.member_unread + conv.counselor_unread) + '</span>' : '');
+            list.appendChild(item);
+        });
+    }
+
+    function selectChat(chatId) {
+        selectedChatId = chatId;
+        var conv = conversations.find(function(c) { return c.id === chatId; });
+        if (!conv) return;
+        var otherName = conv.member_name || conv.counselor_name || 'Conversation';
+
+        document.getElementById('noChatSelected').style.display = 'none';
+        var activeChat = document.getElementById('activeChat');
+        activeChat.style.display = 'flex';
+
+        document.getElementById('chatHeader').innerHTML = '<div class="avatar">' + getInitials(otherName) + '</div>' +
+            '<div style="flex:1"><strong>' + escapeHtml(otherName) + '</strong><p style="margin:2px 0 0;font-size:0.8rem;color:var(--gray-500)">Chat</p></div>';
+
+        loadMessages(chatId);
+        document.getElementById('chatInput').focus();
+    }
+
+    function loadMessages(chatId) {
+        if (!messages[chatId]) messages[chatId] = [];
+        API.chat.getMessages(chatId).then(function(r) {
+            messages[chatId] = (r && r.data) ? (Array.isArray(r.data) ? r.data : r.data.messages || []) : [];
+            renderMessages(chatId);
+        }).catch(function() {
+            renderMessages(chatId);
+        });
+    }
+
+    function renderMessages(chatId) {
+        var container = document.getElementById('chatMessages');
+        container.innerHTML = '';
+        var msgs = messages[chatId] || [];
+        msgs.forEach(function(msg) {
+            var isSent = msg.sender_id === user.id || msg.senderId === user.id;
+            var div = document.createElement('div');
+            div.className = 'chat-message' + (isSent ? ' sent' : ' received');
+            div.innerHTML = (isSent ? '' : '<div class="avatar" style="width:32px;height:32px;font-size:0.7rem">' + getInitials(msg.sender_name || '') + '</div>') +
+                '<div>' +
+                    '<div class="chat-bubble' + (isSent ? ' sent' : ' received') + '">' + escapeHtml(msg.message || '') + '</div>' +
+                    '<span class="chat-time-stamp">' + (msg.created_at ? new Date(msg.created_at).toLocaleString() : '') + '</span>' +
+                '</div>' +
+                (isSent ? '<div class="avatar" style="width:32px;height:32px;font-size:0.7rem">' + getInitials(msg.sender_name || '') + '</div>' : '');
+            container.appendChild(div);
+        });
+        container.scrollTop = container.scrollHeight;
+    }
+
+    function sendMessage() {
+        var input = document.getElementById('chatInput');
+        var text = input.value.trim();
+        if (!text || !selectedChatId) return;
+        API.chat.sendMessage({
+            conversationId: selectedChatId,
+            senderId: user.id,
+            senderType: 'member',
+            message: text,
+            message_type: 'text'
+        }).then(function(r) {
+            var newMsg = (r && r.data) ? r.data : null;
+            if (!messages[selectedChatId]) messages[selectedChatId] = [];
+            if (newMsg) messages[selectedChatId].push(newMsg);
+            else {
+                messages[selectedChatId].push({
+                    conversation_id: selectedChatId,
+                    sender_id: user.id,
+                    sender_name: user.name || 'You',
+                    message: text,
+                    created_at: new Date().toISOString()
+                });
+            }
+            input.value = '';
+            renderMessages(selectedChatId);
+            loadConversations();
+        }).catch(function() {
+            input.value = '';
+            showToast('Failed to send message', 'error');
+        });
+    }
+
+    function getInitials(name) {
+        if (!name) return '?';
+        return name.split(' ').map(function(w) { return w.charAt(0); }).join('').toUpperCase().substring(0, 2);
+    }
+
+    document.getElementById('chatInput').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') sendMessage();
+    });
+    </script>
+</body>
+</html>

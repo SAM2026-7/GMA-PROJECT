@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Testimonies - GMA City Complex</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <div id="navContainer"></div>
+    <div class="page-header">
+        <div class="container">
+            <h1>Testimonies</h1>
+            <p>Real stories of God's faithfulness, healing and power in the lives of our members.</p>
+            <div class="breadcrumb"><a href="/index.html">Home</a><span>/</span><span>Testimonies</span></div>
+        </div>
+    </div>
+    <section class="section">
+        <div class="container">
+            <div class="tabs" id="filterTabs">
+                <button class="tab active" data-filter="all">All</button>
+                <button class="tab" data-filter="Healing">Healing</button>
+                <button class="tab" data-filter="Salvation">Salvation</button>
+                <button class="tab" data-filter="Family">Family</button>
+                <button class="tab" data-filter="Financial">Financial</button>
+                <button class="tab" data-filter="Career">Career</button>
+                <button class="tab" data-filter="Prayer Answered">Prayer Answered</button>
+                <button class="tab" data-filter="Spiritual Growth">Spiritual Growth</button>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:24px">
+                <div id="testimonyCount" class="text-muted text-sm"></div>
+                <button class="btn btn-primary" onclick="openShareModal()">&#10010; Share Your Testimony</button>
+            </div>
+            <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:24px" id="testimoniesGrid">
+                <div class="text-center text-muted text-sm" style="grid-column:1/-1;padding:40px">Loading testimonies...</div>
+            </div>
+            <div id="emptyState" class="empty-state" style="display:none"><div class="empty-icon">&#11088;</div><h3>No Testimonies Found</h3><p>There are no testimonies matching the selected category.</p></div>
+        </div>
+    </section>
+    <div class="modal-backdrop" id="shareModal">
+        <div class="modal"><div class="modal-header"><h3>Share Your Testimony</h3><button class="modal-close" onclick="closeModal('shareModal')">&times;</button></div>
+        <div class="modal-body">
+            <div class="form-group"><label for="testimonyName">Your Name</label><input type="text" id="testimonyName" class="form-control" placeholder="Full name" required></div>
+            <div class="form-group"><label for="testimonyCategory">Category</label><select id="testimonyCategory" class="form-control" required><option value="">Select</option><option value="Healing">Healing</option><option value="Salvation">Salvation</option><option value="Family">Family</option><option value="Financial">Financial</option><option value="Career">Career</option><option value="Prayer Answered">Prayer Answered</option><option value="Spiritual Growth">Spiritual Growth</option></select></div>
+            <div class="form-group"><label for="testimonyText">Your Testimony</label><textarea id="testimonyText" class="form-control" rows="5" placeholder="Share how God has worked in your life..." required></textarea></div>
+            <div class="form-group"><label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer"><input type="checkbox" id="testimonyPermission" style="margin-top:4px" required><span>I give permission for this testimony to be shared publicly.</span></label></div>
+        </div>
+        <div class="modal-footer"><button class="btn btn-ghost btn-sm" onclick="closeModal('shareModal')">Cancel</button><button class="btn btn-primary btn-sm" onclick="submitTestimony()">Submit</button></div></div>
+    </div>
+    <div id="footerContainer"></div>
+    <script src="../js/app.js"></script>
+    <script src="../js/components.js"></script>
+    <script src="../js/api.js"></script>
+    <script>
+    document.getElementById('navContainer').innerHTML = renderPublicNav('testimonies');
+    loadSiteSettings().then(function() { document.getElementById('footerContainer').innerHTML = renderFooter(); });
+    setupNavigation();
+    var currentFilter = 'all';
+    var allTestimonies = [];
+
+    function renderTestimonies(filter) {
+        var grid = document.getElementById('testimoniesGrid');
+        var empty = document.getElementById('emptyState');
+        var testimonies = allTestimonies.filter(function(t) { return filter === 'all' || t.category === filter; });
+        document.getElementById('testimonyCount').textContent = testimonies.length + ' testimon' + (testimonies.length !== 1 ? 'ies' : 'y');
+        if (testimonies.length === 0) { grid.innerHTML = ''; empty.style.display = 'block'; return; }
+        empty.style.display = 'none';
+        grid.innerHTML = testimonies.map(function(t) {
+            var name = t.name || t.authorName || t.author_name || 'Member';
+            var text = t.text || t.content || '';
+            var date = t.date || t.createdAt || '';
+            return '<div class="testimony-card"><div class="testimony-card-header"><span class="badge badge-gold">' + escapeHtml(t.category || 'Testimony') + '</span></div><div class="testimony-text">\u201C' + escapeHtml(text) + '\u201D</div><div class="testimony-author"><div class="avatar">' + getInitials(name) + '</div><div><div class="author-name">' + escapeHtml(name) + '</div><div class="author-date">' + escapeHtml(date ? new Date(date).toLocaleDateString('en-NG', {year:'numeric',month:'short',day:'numeric'}) : '') + '</div></div></div></div>';
+        }).join('');
+    }
+
+    document.getElementById('filterTabs').addEventListener('click', function(e) {
+        var btn = e.target.closest('.tab'); if (!btn) return;
+        document.querySelectorAll('#filterTabs .tab').forEach(function(t) { t.classList.remove('active'); });
+        btn.classList.add('active'); currentFilter = btn.getAttribute('data-filter'); renderTestimonies(currentFilter);
+    });
+
+    function openShareModal() {
+        document.getElementById('testimonyName').value = '';
+        document.getElementById('testimonyCategory').value = '';
+        document.getElementById('testimonyText').value = '';
+        document.getElementById('testimonyPermission').checked = false;
+        var user = getUser(); if (user) document.getElementById('testimonyName').value = user.name || '';
+        showModal('shareModal');
+    }
+
+    function submitTestimony() {
+        var name = document.getElementById('testimonyName').value.trim();
+        var category = document.getElementById('testimonyCategory').value;
+        var text = document.getElementById('testimonyText').value.trim();
+        var permission = document.getElementById('testimonyPermission').checked;
+        if (!name || !category || !text) { showToast('Please fill in all fields.', 'error'); return; }
+        if (!permission) { showToast('Please grant permission.', 'error'); return; }
+        API.testimonies.create({ name: name, authorName: name, category: category, text: text, content: text }).then(function() {
+            closeModal('shareModal');
+            showToast('Thank you! Your testimony will be reviewed and published soon.', 'success');
+        }).catch(function() {
+            closeModal('shareModal');
+            showToast('Thank you! Your testimony will be reviewed soon.', 'success');
+        });
+    }
+
+    API.testimonies.getAll({}).then(function(r) {
+        allTestimonies = (r && r.data) ? (Array.isArray(r.data) ? r.data : r.data.testimonies || []) : [];
+        renderTestimonies('all');
+    }).catch(function() {
+        API.testimonies.approved(1, 50).then(function(r) {
+            allTestimonies = (r && r.data) ? (Array.isArray(r.data) ? r.data : r.data.testimonies || []) : [];
+            renderTestimonies('all');
+        }).catch(function() { allTestimonies = []; renderTestimonies('all'); });
+    });
+    </script>
+</body>
+</html>

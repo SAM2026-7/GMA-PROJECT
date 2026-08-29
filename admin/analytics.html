@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reports - GMA City Complex Admin</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <div id="app"></div>
+    <script src="../js/app.js"></script>
+    <script src="../js/components.js"></script>
+    <script src="../js/layouts.js"></script>
+    <script src="../js/api.js"></script>
+    <script>
+    if (!requireAuth('admin')) throw new Error('Not authorized');
+    var dashData = {};
+    var memberData = {};
+    var bookingAnalytics = {};
+    var prayerAnalytics = {};
+    var reportData = {};
+    var allBookings = [];
+    var allPrayers = [];
+
+    function render() {
+        var content = '<div class="content-header"><div><h1 class="page-title">Reports</h1><p class="page-description">Booking and prayer request reports from frontend submissions.</p></div></div>';
+
+        content += '<div class="card" style="margin-bottom:24px"><div class="card-header">Date Range</div><div class="card-body"><div style="display:flex;gap:12px;align-items:end;flex-wrap:wrap">' +
+            '<div class="form-group" style="margin:0"><label>From</label><input type="date" id="reportStart" class="form-control" value="' + getDefaultStartDate() + '"></div>' +
+            '<div class="form-group" style="margin:0"><label>To</label><input type="date" id="reportEnd" class="form-control" value="' + getDefaultEndDate() + '"></div>' +
+            '<button class="btn btn-primary" onclick="loadReports()">Generate Report</button>' +
+            '</div></div></div>';
+
+        content += '<div class="stats-grid">';
+        content += '<div class="stat-card"><div class="stat-icon">\uD83D\uDC65</div><div class="stat-info"><span>Total Members</span><strong>' + (memberData.totalMembers || 0) + '</strong></div></div>';
+        content += '<div class="stat-card"><div class="stat-icon">\uD83D\uDCC5</div><div class="stat-info"><span>Total Bookings</span><strong>' + (bookingAnalytics.total || 0) + '</strong></div></div>';
+        content += '<div class="stat-card"><div class="stat-icon">\uD83D\uDCCB</div><div class="stat-info"><span>Active Cases</span><strong>' + (dashData.activeCases || 0) + '</strong></div></div>';
+        content += '<div class="stat-card"><div class="stat-icon">\uD83D\uDE4F</div><div class="stat-info"><span>Prayer Requests</span><strong>' + (prayerAnalytics.totalRequests || 0) + '</strong></div></div>';
+        content += '</div>';
+
+        content += '<div class="grid" style="grid-template-columns:1fr 1fr;gap:24px">';
+        content += '<div class="card"><div class="card-header" style="display:flex;justify-content:space-between;align-items:center">Booking Report <button class="btn btn-sm btn-outline" onclick="exportBookingCSV()">Export CSV</button></div><div class="card-body">';
+        content += renderBookingStats();
+        content += '</div></div>';
+
+        content += '<div class="card"><div class="card-header" style="display:flex;justify-content:space-between;align-items:center">Prayer Request Report <button class="btn btn-sm btn-outline" onclick="exportPrayerCSV()">Export CSV</button></div><div class="card-body">';
+        content += renderPrayerStats();
+        content += '</div></div>';
+        content += '</div>';
+
+        content += '<div class="card" style="margin-top:24px"><div class="card-header">Booking Details</div><div class="card-body" style="padding:0"><div class="table-wrap">';
+        content += renderBookingTable();
+        content += '</div></div></div>';
+
+        content += '<div class="card" style="margin-top:24px"><div class="card-header">Prayer Request Details</div><div class="card-body" style="padding:0"><div class="table-wrap">';
+        content += renderPrayerTable();
+        content += '</div></div></div>';
+
+        document.getElementById('app').innerHTML = renderAdminLayout('analytics', content);
+        document.getElementById('sidebarToggle').addEventListener('click', function() { document.getElementById('sidebar').classList.toggle('open'); });
+    }
+
+    function getDefaultStartDate() {
+        var d = new Date();
+        d.setMonth(d.getMonth() - 1);
+        return d.toISOString().split('T')[0];
+    }
+    function getDefaultEndDate() {
+        return new Date().toISOString().split('T')[0];
+    }
+
+    function renderBookingStats() {
+        var html = '<div style="display:flex;flex-direction:column;gap:12px">';
+        html += '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--gray-100)"><span class="text-sm">Total Bookings</span><strong>' + (bookingAnalytics.total || 0) + '</strong></div>';
+        html += '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--gray-100)"><span class="text-sm">Confirmed</span><strong>' + getStatusCount(bookingAnalytics.byStatus, 'confirmed') + '</strong></div>';
+        html += '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--gray-100)"><span class="text-sm">Completed</span><strong>' + getStatusCount(bookingAnalytics.byStatus, 'completed') + '</strong></div>';
+        html += '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--gray-100)"><span class="text-sm">Pending</span><strong>' + (getStatusCount(bookingAnalytics.byStatus, 'pending') + getStatusCount(bookingAnalytics.byStatus, 'new')) + '</strong></div>';
+        html += '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--gray-100)"><span class="text-sm">Cancelled</span><strong>' + getStatusCount(bookingAnalytics.byStatus, 'cancelled') + '</strong></div>';
+        html += '<div style="display:flex;justify-content:space-between;padding:8px 0"><span class="text-sm">Avg Wait Time</span><strong>' + (bookingAnalytics.averageWaitTime || 0) + 'h</strong></div>';
+        html += '</div>';
+        return html;
+    }
+
+    function renderPrayerStats() {
+        var html = '<div style="display:flex;flex-direction:column;gap:12px">';
+        html += '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--gray-100)"><span class="text-sm">Total Requests</span><strong>' + (prayerAnalytics.totalRequests || 0) + '</strong></div>';
+        html += '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--gray-100)"><span class="text-sm">Answered</span><strong>' + (prayerAnalytics.answeredRate || 0) + '%</strong></div>';
+        html += '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--gray-100)"><span class="text-sm">Urgent</span><strong>' + getUrgencyCount(prayerAnalytics.byUrgency, 'urgent') + '</strong></div>';
+        html += '<div style="display:flex;justify-content:space-between;padding:8px 0"><span class="text-sm">Pending</span><strong>' + getStatusCount(prayerAnalytics.byStatus, 'received') + '</strong></div>';
+        html += '</div>';
+        return html;
+    }
+
+    function renderBookingTable() {
+        if (allBookings.length === 0) return '<p class="text-center text-muted text-sm" style="padding:20px">No bookings found</p>';
+        var html = '<table class="table"><thead><tr><th>ID</th><th>Name</th><th>Service</th><th>Date</th><th>Time</th><th>Status</th></tr></thead><tbody>';
+        allBookings.forEach(function(b) {
+            html += '<tr><td><strong>#' + escapeHtml(String(b.id).substring(0, 6)) + '</strong></td><td>' + escapeHtml(b.memberName || b.member_name || 'Member') + '</td><td>' + escapeHtml(b.serviceType || b.service || '') + '</td><td>' + escapeHtml(b.date || b.bookingDate || '') + '</td><td>' + escapeHtml(b.time || b.bookingTime || '') + '</td><td>' + getStatusBadge(b.status) + '</td></tr>';
+        });
+        html += '</tbody></table>';
+        return html;
+    }
+
+    function renderPrayerTable() {
+        if (allPrayers.length === 0) return '<p class="text-center text-muted text-sm" style="padding:20px">No prayer requests found</p>';
+        var html = '<table class="table"><thead><tr><th>ID</th><th>Name</th><th>Category</th><th>Request</th><th>Urgency</th><th>Status</th></tr></thead><tbody>';
+        allPrayers.forEach(function(p) {
+            html += '<tr><td><strong>#' + escapeHtml(String(p.id).substring(0, 6)) + '</strong></td><td>' + escapeHtml(p.memberName || p.member_name || 'Anonymous') + '</td><td>' + escapeHtml(p.category || '') + '</td><td>' + escapeHtml((p.description || p.text || p.request || '').substring(0, 80)) + '</td><td>' + getUrgencyBadge(p.urgency) + '</td><td>' + escapeHtml(p.status || '') + '</td></tr>';
+        });
+        html += '</tbody></table>';
+        return html;
+    }
+
+    function getStatusCount(arr, status) {
+        if (!Array.isArray(arr)) return 0;
+        var item = arr.find(function(s) { return s.status === status; });
+        return item ? item.count : 0;
+    }
+    function getUrgencyCount(arr, urgency) {
+        if (!Array.isArray(arr)) return 0;
+        var item = arr.find(function(u) { return u.urgency === urgency; });
+        return item ? item.count : 0;
+    }
+
+    window.loadReports = function() {
+        var start = document.getElementById('reportStart').value;
+        var end = document.getElementById('reportEnd').value;
+        Promise.all([
+            API.analytics.dashboard().catch(function() { return { data: {} }; }),
+            API.analytics.members().catch(function() { return { data: {} }; }),
+            API.analytics.bookings().catch(function() { return { data: {} }; }),
+            API.analytics.prayer().catch(function() { return { data: {} }; }),
+            API.bookings.getAll({}).catch(function() { return { data: [] }; }),
+            API.prayer.getAll({}).catch(function() { return { data: [] }; })
+        ]).then(function(results) {
+            dashData = (results[0] && results[0].data) ? results[0].data : {};
+            memberData = (results[1] && results[1].data) ? results[1].data : {};
+            bookingAnalytics = (results[2] && results[2].data) ? results[2].data : {};
+            prayerAnalytics = (results[3] && results[3].data) ? results[3].data : {};
+            allBookings = (results[4] && results[4].data) ? (Array.isArray(results[4].data) ? results[4].data : results[4].data.bookings || []) : [];
+            allPrayers = (results[5] && results[5].data) ? (Array.isArray(results[5].data) ? results[5].data : results[5].data.prayers || []) : [];
+            render();
+        });
+    };
+
+    window.exportBookingCSV = function() {
+        if (allBookings.length === 0) { showToast('No bookings to export', 'error'); return; }
+        var rows = [['ID', 'Name', 'Service', 'Date', 'Time', 'Status']];
+        allBookings.forEach(function(b) {
+            rows.push([b.id, b.memberName || b.member_name || '', b.serviceType || b.service || '', b.date || b.bookingDate || '', b.time || b.bookingTime || '', b.status || '']);
+        });
+        var csv = rows.map(function(r) { return r.map(function(c) { return '"' + String(c).replace(/"/g, '""') + '"'; }).join(','); }).join('\n');
+        var blob = new Blob([csv], { type: 'text/csv' });
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'booking-report-' + new Date().toISOString().split('T')[0] + '.csv';
+        a.click();
+    };
+
+    window.exportPrayerCSV = function() {
+        if (allPrayers.length === 0) { showToast('No prayer requests to export', 'error'); return; }
+        var rows = [['ID', 'Name', 'Category', 'Request', 'Urgency', 'Status']];
+        allPrayers.forEach(function(p) {
+            rows.push([p.id, p.memberName || p.member_name || 'Anonymous', p.category || '', p.description || p.text || p.request || '', p.urgency || '', p.status || '']);
+        });
+        var csv = rows.map(function(r) { return r.map(function(c) { return '"' + String(c).replace(/"/g, '""') + '"'; }).join(','); }).join('\n');
+        var blob = new Blob([csv], { type: 'text/csv' });
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'prayer-report-' + new Date().toISOString().split('T')[0] + '.csv';
+        a.click();
+    };
+
+    loadReports();
+    </script>
+</body>
+</html>

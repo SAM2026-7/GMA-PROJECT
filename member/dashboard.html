@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - GMA City Complex</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <div id="app"></div>
+    <script src="../js/app.js"></script>
+    <script src="../js/components.js"></script>
+    <script src="../js/layouts.js"></script>
+    <script src="../js/api.js"></script>
+    <script>
+    if (!requireMember()) throw new Error('Not authorized');
+    var user = getUser();
+    document.getElementById('app').innerHTML = renderMemberLayout('dashboard',
+        '<div class="content-header"><div><h1 class="page-title">My Dashboard</h1><p class="page-description">Welcome back, ' + escapeHtml(user.name || user.email) + '!</p></div><a href="/pages/booking.html" class="btn btn-primary">+ New Booking</a></div>' +
+        '<div class="stats-grid">' +
+        '<div class="stat-card"><div class="stat-icon">\uD83D\uDCC5</div><div class="stat-info"><span>My Bookings</span><strong id="statBookings">-</strong></div></div>' +
+        '<div class="stat-card"><div class="stat-icon">\uD83D\uDCA1</div><div class="stat-info"><span>Active Cases</span><strong id="statCases">-</strong></div></div>' +
+        '<div class="stat-card"><div class="stat-icon">\uD83D\uDE4F</div><div class="stat-info"><span>Prayer Requests</span><strong id="statPrayers">-</strong></div></div>' +
+        '<div class="stat-card"><div class="stat-icon">\uD83D\uDD14</div><div class="stat-info"><span>Notifications</span><strong id="statNotifs">-</strong></div></div>' +
+        '</div>' +
+        '<div class="grid" style="grid-template-columns: 2fr 1fr; gap: 24px">' +
+        '<div>' +
+        '<div class="card mb-3"><div class="card-header">My Pastoral Care</div><div class="card-body" id="casesList"><div class="text-center text-muted text-sm" style="padding:20px">Loading...</div></div></div>' +
+        '<div class="card mb-3"><div class="card-header">Upcoming Sessions</div><div class="card-body" id="bookingsList"><div class="text-center text-muted text-sm" style="padding:20px">Loading...</div></div></div>' +
+        '<div class="card"><div class="card-header">Quick Actions</div><div class="card-body" style="display:flex;flex-direction:column;gap:8px">' +
+        '<a href="/pages/booking.html" class="btn btn-outline-blue btn-sm btn-block">\uD83D\uDCC5 Book a Session</a>' +
+        '<a href="/pages/prayer-request.html" class="btn btn-outline-blue btn-sm btn-block">\uD83D\uDE4F Submit Prayer Request</a>' +
+        '<a href="/member/chat.html" class="btn btn-outline-blue btn-sm btn-block">\uD83D\uDCAC Chat with Pastor</a>' +
+        '<a href="/pages/giving.html" class="btn btn-outline-blue btn-sm btn-block">\uD83D\uDCB0 Give Online</a>' +
+        '</div></div></div>' +
+        '<div>' +
+        '<div class="card mb-3"><div class="card-header">Recent Activity</div><div class="card-body" id="activityList"><div class="text-center text-muted text-sm" style="padding:20px">Loading...</div></div></div>' +
+        '<div class="card"><div class="card-header">Notifications</div><div class="card-body" id="notifsList"><div class="text-center text-muted text-sm" style="padding:20px">Loading...</div></div></div>' +
+        '</div></div>'
+    );
+    document.getElementById('sidebarToggle').addEventListener('click', function() { document.getElementById('sidebar').classList.toggle('open'); });
+
+    var user = getUser();
+    var memberId = user.memberId || user.id;
+
+    API.bookings.byMember(memberId).then(function(r) {
+        var bookings = (r && r.data) ? (Array.isArray(r.data) ? r.data : r.data.bookings || []) : [];
+        document.getElementById('statBookings').textContent = bookings.length;
+        var upcoming = bookings.filter(function(b) { return b.status === 'confirmed' || b.status === 'pending'; }).slice(0, 5);
+        var el = document.getElementById('bookingsList');
+        if (upcoming.length === 0) { el.innerHTML = '<p class="text-muted text-sm" style="padding:20px 0;text-align:center">No upcoming sessions</p>'; return; }
+        var h = '';
+        upcoming.forEach(function(b) {
+            h += '<div style="padding:10px 0;border-bottom:1px solid var(--gray-100)"><strong style="font-size:0.9rem">' + escapeHtml(b.serviceType || b.service || '') + '</strong><br><span class="text-muted text-sm">\uD83D\uDCC5 ' + escapeHtml(b.date || b.bookingDate || '') + ' at ' + escapeHtml(b.time || b.bookingTime || '') + '</span></div>';
+        });
+        el.innerHTML = h;
+    }).catch(function() { document.getElementById('bookingsList').innerHTML = '<p class="text-muted text-sm" style="padding:20px 0;text-align:center">Unable to load</p>'; });
+
+    API.cases.getAll({ memberId: memberId }).then(function(r) {
+        var cases = (r && r.data) ? (Array.isArray(r.data) ? r.data : r.data.cases || []) : [];
+        var active = cases.filter(function(c) { return c.status === 'active'; });
+        document.getElementById('statCases').textContent = active.length;
+        var el = document.getElementById('casesList');
+        if (cases.length === 0) { el.innerHTML = '<div class="empty-state"><div class="empty-icon">\uD83D\uDCA1</div><h3>No Active Cases</h3><p>Book a session to get started.</p><a href="/pages/booking.html" class="btn btn-primary btn-sm">Book a Session</a></div>'; return; }
+        var h = '';
+        cases.forEach(function(c) {
+            h += '<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--gray-100)"><div><strong>' + escapeHtml(c.type || 'Counseling') + '</strong><br><span class="text-muted text-sm">Case #' + escapeHtml(String(c.id).substring(0,8)) + '</span></div><div>' + getStatusBadge(c.status) + '</div></div>';
+        });
+        el.innerHTML = h;
+    }).catch(function() { document.getElementById('casesList').innerHTML = '<p class="text-muted text-sm" style="padding:20px 0;text-align:center">Unable to load</p>'; });
+
+    API.prayer.getAll({ memberId: memberId }).then(function(r) {
+        var prayers = (r && r.data) ? (Array.isArray(r.data) ? r.data : r.data.prayers || []) : [];
+        document.getElementById('statPrayers').textContent = prayers.length;
+    }).catch(function() { document.getElementById('statPrayers').textContent = '0'; });
+
+    API.notifications.getAll({}).then(function(r) {
+        var notifs = (r && r.data) ? (Array.isArray(r.data) ? r.data : r.data.notifications || []) : [];
+        var unread = notifs.filter(function(n) { return !n.isRead && !n.read; }).length;
+        document.getElementById('statNotifs').textContent = unread || notifs.length;
+        var el = document.getElementById('notifsList');
+        if (notifs.length === 0) { el.innerHTML = '<p class="text-muted text-sm" style="padding:20px 0;text-align:center">No notifications</p>'; return; }
+        var h = '';
+        notifs.slice(0, 5).forEach(function(n) {
+            var isRead = n.isRead || n.read;
+            h += '<div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--gray-100)' + (!isRead ? 'background:var(--royal-pale);margin:0 -1.5rem;padding-left:1.5rem;padding-right:1.5rem' : '') + '"><div style="flex:1"><span class="text-sm">' + escapeHtml(n.message || n.title || n.text || '') + '</span><br><span class="text-xs text-muted">' + timeAgo(n.createdAt || n.created_at || n.time) + '</span></div></div>';
+        });
+        el.innerHTML = h + '<div style="text-align:center;padding-top:12px"><a href="/member/notifications.html" class="text-sm text-blue">View All</a></div>';
+    }).catch(function() { document.getElementById('notifsList').innerHTML = '<p class="text-muted text-sm" style="padding:20px 0;text-align:center">No notifications</p>'; });
+
+    API.audit.recent(10).then(function(r) {
+        var logs = (r && r.data) ? (Array.isArray(r.data) ? r.data : r.data.logs || []) : [];
+        var el = document.getElementById('activityList');
+        if (logs.length === 0) { el.innerHTML = '<p class="text-muted text-sm" style="padding:20px 0;text-align:center">No recent activity</p>'; return; }
+        var h = '';
+        logs.slice(0, 5).forEach(function(l) {
+            var icon = '\uD83D\uDD17';
+            var action = (l.action || '').toLowerCase();
+            if (action.indexOf('booking') >= 0) icon = '\uD83D\uDCC5';
+            else if (action.indexOf('prayer') >= 0) icon = '\uD83D\uDE4F';
+            else if (action.indexOf('member') >= 0 || action.indexOf('register') >= 0) icon = '\uD83D\uDC64';
+            else if (action.indexOf('chat') >= 0 || action.indexOf('message') >= 0) icon = '\uD83D\uDCAC';
+            h += '<div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--gray-100)"><span>' + icon + '</span><div style="flex:1"><span class="text-sm">' + escapeHtml(l.description || l.action || '') + '</span><br><span class="text-xs text-muted">' + timeAgo(l.createdAt || l.created_at || l.timestamp) + '</span></div></div>';
+        });
+        el.innerHTML = h;
+    }).catch(function() { document.getElementById('activityList').innerHTML = '<p class="text-muted text-sm" style="padding:20px 0;text-align:center">No recent activity</p>'; });
+    </script>
+</body>
+</html>

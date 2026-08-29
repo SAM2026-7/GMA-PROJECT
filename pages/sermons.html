@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sermons - GMA City Complex</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <div id="navContainer"></div>
+    <div class="page-header">
+        <div class="container">
+            <h1>Sermons</h1>
+            <p>Listen, watch and grow from our library of spirit-filled messages.</p>
+            <div class="breadcrumb"><a href="/index.html">Home</a><span>/</span><span>Sermons</span></div>
+        </div>
+    </div>
+    <section class="section">
+        <div class="container">
+            <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:24px">
+                <div class="search-box" style="flex:1;min-width:250px">
+                    <span class="search-icon">&#128269;</span>
+                    <input type="text" id="sermonSearch" class="form-control" placeholder="Search sermons by title, speaker or scripture...">
+                </div>
+            </div>
+            <div class="tabs" id="sermonTabs">
+                <button class="tab active" data-filter="All">All</button>
+                <button class="tab" data-filter="Faith">Faith</button>
+                <button class="tab" data-filter="Prayer">Prayer</button>
+                <button class="tab" data-filter="Healing">Healing</button>
+                <button class="tab" data-filter="Family">Family</button>
+                <button class="tab" data-filter="Spiritual Growth">Spiritual Growth</button>
+            </div>
+            <div id="sermonCount" class="text-muted text-sm mb-3"></div>
+            <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:24px" id="sermonsGrid">
+                <div class="text-center text-muted text-sm" style="grid-column:1/-1;padding:40px">Loading sermons...</div>
+            </div>
+            <div id="emptyState" class="empty-state hidden">
+                <div class="empty-icon">&#128269;</div>
+                <h3>No sermons found</h3>
+                <p>Try a different search term or category.</p>
+            </div>
+        </div>
+    </section>
+    <div id="footerContainer"></div>
+    <script src="../js/app.js"></script>
+    <script src="../js/components.js"></script>
+    <script src="../js/api.js"></script>
+    <script>
+    document.getElementById('navContainer').innerHTML = renderPublicNav('sermons');
+    loadSiteSettings().then(function() { document.getElementById('footerContainer').innerHTML = renderFooter(); });
+    setupNavigation();
+
+    var currentFilter = 'All';
+    var searchQuery = '';
+    var allSermons = [];
+
+    var categoryBadgeClass = { 'Faith': 'badge-primary', 'Prayer': 'badge-info', 'Healing': 'badge-success', 'Family': 'badge-warning', 'Spiritual Growth': 'badge-danger' };
+    var categoryIcons = { 'Faith': '\uD83D\uDD25', 'Prayer': '\uD83D\uDE4F', 'Healing': '\u2764\uFE0F', 'Family': '\uD83C\uDFE0', 'Spiritual Growth': '\uD83C\uDF1F' };
+    var categoryColors = { 'Faith': '#2563eb', 'Prayer': '#7c3aed', 'Healing': '#059669', 'Family': '#d97706', 'Spiritual Growth': '#dc2626' };
+
+    function renderSermons() {
+        var filtered = allSermons.filter(function(s) {
+            var cat = s.category || 'General';
+            var matchesFilter = currentFilter === 'All' || cat === currentFilter;
+            if (!matchesFilter) return false;
+            if (!searchQuery) return true;
+            var q = searchQuery.toLowerCase();
+            return (s.title || '').toLowerCase().indexOf(q) !== -1 ||
+                   (s.speaker || '').toLowerCase().indexOf(q) !== -1 ||
+                   (s.scriptureReference || s.bibleRef || '').toLowerCase().indexOf(q) !== -1 ||
+                   (s.description || '').toLowerCase().indexOf(q) !== -1 ||
+                   cat.toLowerCase().indexOf(q) !== -1;
+        });
+        var grid = document.getElementById('sermonsGrid');
+        var empty = document.getElementById('emptyState');
+        document.getElementById('sermonCount').textContent = filtered.length + ' sermon' + (filtered.length !== 1 ? 's' : '') + ' found';
+        if (filtered.length === 0) { grid.innerHTML = ''; empty.classList.remove('hidden'); return; }
+        empty.classList.add('hidden');
+        grid.innerHTML = filtered.map(function(s) {
+            var cat = s.category || 'General';
+            var color = categoryColors[cat] || '#2563eb';
+            var badge = categoryBadgeClass[cat] || 'badge-primary';
+            var icon = categoryIcons[cat] || '\uD83C\uDFAC';
+            return '<div class="sermon-card">' +
+                '<div class="sermon-thumb" style="background:linear-gradient(135deg,' + color + ',' + color + 'cc)">' +
+                    '<span style="position:absolute;top:12px;left:12px;font-size:0.75rem;background:rgba(0,0,0,0.4);padding:3px 10px;border-radius:20px;display:flex;align-items:center;gap:4px">' + icon + ' ' + escapeHtml(cat) + '</span>' +
+                    '<div class="play-btn">&#9654;</div></div>' +
+                '<div class="sermon-body">' +
+                    '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><span class="badge ' + badge + '">' + escapeHtml(cat) + '</span>' +
+                    (s.duration ? '<span class="text-xs text-muted">' + escapeHtml(s.duration) + '</span>' : '') + '</div>' +
+                    '<h3>' + escapeHtml(s.title || '') + '</h3>' +
+                    '<div class="sermon-meta" style="margin-top:8px">' +
+                    '<div style="margin-bottom:4px"><strong>Speaker:</strong> ' + escapeHtml(s.speaker || '') + '</div>' +
+                    (s.scriptureReference || s.bibleRef ? '<div style="margin-bottom:4px"><strong>Scripture:</strong> ' + escapeHtml(s.scriptureReference || s.bibleRef) + '</div>' : '') +
+                    (s.date ? '<div style="margin-bottom:4px"><strong>Date:</strong> ' + escapeHtml(s.date) + '</div>' : '') +
+                    '</div>' +
+                    (s.description ? '<p class="text-sm text-muted" style="margin-top:10px;line-height:1.6">' + escapeHtml(s.description) + '</p>' : '') +
+                    '<div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">' +
+                    '<button class="btn btn-primary btn-sm" style="flex:1;min-width:120px">&#9654; Watch</button>' +
+                    '<button class="btn btn-outline-blue btn-sm" onclick="showToast(\'Downloading sermon notes...\',\'success\')" style="flex:1;min-width:120px">&#128196; Notes</button>' +
+                    '</div></div></div>';
+        }).join('');
+    }
+
+    document.getElementById('sermonTabs').addEventListener('click', function(e) {
+        var btn = e.target.closest('.tab');
+        if (!btn) return;
+        document.querySelectorAll('#sermonTabs .tab').forEach(function(t) { t.classList.remove('active'); });
+        btn.classList.add('active');
+        currentFilter = btn.getAttribute('data-filter');
+        renderSermons();
+    });
+    document.getElementById('sermonSearch').addEventListener('input', function() { searchQuery = this.value; renderSermons(); });
+
+    API.sermons.getAll({}).then(function(r) {
+        allSermons = (r && r.data) ? (Array.isArray(r.data) ? r.data : r.data.sermons || []) : [];
+        renderSermons();
+    }).catch(function() { allSermons = []; renderSermons(); });
+    </script>
+</body>
+</html>

@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Counseling - GMA City Complex</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <div id="app"></div>
+    <script src="../js/app.js"></script>
+    <script src="../js/components.js"></script>
+    <script src="../js/layouts.js"></script>
+    <script src="../js/api.js"></script>
+    <script>
+    if (!requireMember()) throw new Error('Not authorized');
+    var user = getUser();
+    var allCases = [];
+
+    function render() {
+        var active = allCases.filter(function(c) { return c.status === 'active'; });
+        var completed = allCases.filter(function(c) { return c.status === 'completed'; });
+        var content = '<div class="content-header"><div><h1 class="page-title">My Counseling</h1></div><a href="/pages/booking.html?service=Counseling" class="btn btn-primary">Book Session</a></div>';
+        content += '<div class="card mb-3"><div class="card-header">Current Cases</div><div class="card-body">';
+        if (active.length === 0) content += '<p class="text-muted">No active counseling cases. <a href="/pages/booking.html?service=Counseling">Book a session</a> to get started.</p>';
+        else active.forEach(function(c) {
+            var sessions = c.sessionCount || c.session_count || 0;
+            var progress = sessions > 0 ? Math.min(Math.round((sessions / 6) * 100), 90) : 5;
+            content += '<div style="padding:16px;border:1px solid var(--gray-200);border-radius:var(--radius);margin-bottom:12px"><div style="display:flex;justify-content:space-between;margin-bottom:8px"><strong>#' + escapeHtml(String(c.id).substring(0, 8)) + '</strong>' + getStatusBadge(c.status) + '</div><p><strong>Type:</strong> ' + escapeHtml(c.type || 'Counseling') + '</p><p><strong>Counselor:</strong> ' + escapeHtml(c.counselor || c.counselorName || 'Unassigned') + '</p><div class="progress" style="margin-top:8px"><div class="progress-bar" style="width:' + progress + '%"></div></div><p class="text-xs text-muted" style="margin-top:4px">' + sessions + ' sessions completed (' + progress + '%)</p></div>';
+        });
+        content += '</div></div>';
+        content += '<div class="card"><div class="card-header">Past Sessions</div><div class="card-body">';
+        if (completed.length === 0) content += '<p class="text-muted">No completed sessions yet.</p>';
+        else completed.forEach(function(c) {
+            content += '<div style="padding:12px;border:1px solid var(--gray-200);border-radius:var(--radius);margin-bottom:8px"><div style="display:flex;justify-content:space-between"><strong>#' + escapeHtml(String(c.id).substring(0, 8)) + '</strong><span class="badge badge-success">Completed</span></div><p class="text-sm text-muted">' + escapeHtml(c.type || 'Counseling') + ' - ' + escapeHtml(c.counselor || c.counselorName || '') + '</p></div>';
+        });
+        content += '</div></div>';
+        content += '<div class="grid" style="grid-template-columns:1fr 1fr;gap:16px;margin-top:24px"><a href="/pages/booking.html?service=Counseling" class="card" style="text-decoration:none;text-align:center;padding:24px"><div style="font-size:2rem;margin-bottom:8px">&#x1F4CB;</div><h3>Book Session</h3></a><a href="/pages/prayer-request.html" class="card" style="text-decoration:none;text-align:center;padding:24px"><div style="font-size:2rem;margin-bottom:8px">&#x1F64F;</div><h3>Request Prayer</h3></a></div>';
+        document.getElementById('app').innerHTML = renderMemberLayout('counseling', content);
+        document.getElementById('sidebarToggle').addEventListener('click', function() { document.getElementById('sidebar').classList.toggle('open'); });
+    }
+
+    render();
+    API.cases.getAll({ memberId: user.memberId || user.id }).then(function(r) {
+        allCases = (r && r.data) ? (Array.isArray(r.data) ? r.data : r.data.cases || []) : [];
+        render();
+    }).catch(function() { allCases = []; render(); });
+    </script>
+</body>
+</html>

@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GMA City Complex - Worship, Counselling, Healing & Prayer</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="icon" href="logo.svg" type="image/svg+xml">
+</head>
+<body>
+    <div id="navContainer"></div>
+
+    <section class="hero" id="home">
+        <div class="hero-overlay"></div>
+        <div class="container hero-content">
+            <h1>Welcome to <span id="heroName">GMA City Complex</span></h1>
+            <p id="heroDesc">A place of worship, counselling, healing and prayer — where every soul finds hope and restoration.</p>
+            <div class="hero-buttons">
+                <a href="pages/booking.html" class="btn btn-secondary btn-lg">Book a Session</a>
+                <a href="pages/prayer-request.html" class="btn btn-outline btn-lg">Submit Prayer Request</a>
+            </div>
+        </div>
+    </section>
+
+    <section class="section" id="about">
+        <div class="container">
+            <h2 class="section-title">About Us</h2>
+            <p class="section-subtitle">GMA City Complex is a sanctuary dedicated to nurturing faith and restoring lives.</p>
+            <div class="about-grid">
+                <div class="about-card">
+                    <div class="card-icon">&#9997;</div>
+                    <h3>Our Mission</h3>
+                    <p>To reach out with love, strengthen families and walk with every believer on their spiritual journey.</p>
+                </div>
+                <div class="about-card">
+                    <div class="card-icon">&#10010;</div>
+                    <h3>Our Vision</h3>
+                    <p>To build a vibrant community where healing, prayer and godly counsel meet real everyday needs.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="section section-alt" id="programs">
+        <div class="container">
+            <h2 class="section-title">Our Programs</h2>
+            <p class="section-subtitle">Choose a program and book a session with us.</p>
+            <div class="programs-grid">
+                <div class="program-card">
+                    <div class="program-icon">&#9993;</div>
+                    <h3>Counselling</h3>
+                    <p>Confidential guidance for marriages, career, family and personal growth.</p>
+                    <a href="pages/booking.html?service=Counseling" class="btn btn-primary btn-sm">Book Counseling</a>
+                </div>
+                <div class="program-card">
+                    <div class="program-icon">&#10010;</div>
+                    <h3>Healing</h3>
+                    <p>Spiritual and emotional healing through faith, prayer and the Word.</p>
+                    <a href="pages/booking.html?service=Healing" class="btn btn-primary btn-sm">Book Healing</a>
+                </div>
+                <div class="program-card">
+                    <div class="program-icon">&#10022;</div>
+                    <h3>Prayer</h3>
+                    <p>Intense times of prayer and intercession for your requests and the city.</p>
+                    <a href="pages/booking.html?service=Prayer" class="btn btn-primary btn-sm">Book Prayer</a>
+                </div>
+            </div>
+            <div class="text-center mt-4">
+                <a href="pages/programs.html" class="btn btn-outline-blue">View All Programs &rarr;</a>
+            </div>
+        </div>
+    </section>
+
+    <section class="section-dark section" id="service-time">
+        <div class="container">
+            <h2 class="section-title light">Service Times</h2>
+            <p class="section-subtitle light">Join us in worship at our weekly services.</p>
+            <div class="service-grid">
+                <div class="service-card">
+                    <h3>Sunday Service</h3>
+                    <p class="service-day">Sunday</p>
+                    <p class="service-hour">10:00 AM</p>
+                </div>
+                <div class="service-card">
+                    <h3>Midweek Service</h3>
+                    <p class="service-day">Thursday</p>
+                    <p class="service-hour">5:30 PM</p>
+                </div>
+            </div>
+            <div id="nextService" class="next-service">
+                <span id="nextServiceText">Checking next service time...</span>
+            </div>
+        </div>
+    </section>
+
+    <section class="section" id="upcoming-events">
+        <div class="container">
+            <h2 class="section-title">Upcoming Events</h2>
+            <p class="section-subtitle">Don't miss these exciting events at GMA City Complex.</p>
+            <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px;" id="eventsGrid">
+                <div class="text-center text-muted text-sm" style="grid-column:1/-1;padding:20px">Loading events...</div>
+            </div>
+            <div class="text-center mt-4">
+                <a href="pages/events.html" class="btn btn-outline-blue">View All Events &rarr;</a>
+            </div>
+        </div>
+    </section>
+
+    <section class="section section-alt" id="recent-sermons">
+        <div class="container">
+            <h2 class="section-title">Recent Sermons</h2>
+            <p class="section-subtitle">Catch up on recent messages from our pastors.</p>
+            <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px;" id="sermonsGrid">
+                <div class="text-center text-muted text-sm" style="grid-column:1/-1;padding:20px">Loading sermons...</div>
+            </div>
+            <div class="text-center mt-4">
+                <a href="pages/sermons.html" class="btn btn-outline-blue">View All Sermons &rarr;</a>
+            </div>
+        </div>
+    </section>
+
+    <section class="section" id="testimonies">
+        <div class="container">
+            <h2 class="section-title">Testimonies</h2>
+            <p class="section-subtitle">See what God is doing in the lives of our members.</p>
+            <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px;" id="testimoniesGrid">
+                <div class="text-center text-muted text-sm" style="grid-column:1/-1;padding:20px">Loading testimonies...</div>
+            </div>
+            <div class="text-center mt-4">
+                <a href="pages/testimonies.html" class="btn btn-outline-blue">More Testimonies &rarr;</a>
+            </div>
+        </div>
+    </section>
+
+    <section class="section section-dark" id="giving">
+        <div class="container">
+            <h2 class="section-title light">Giving</h2>
+            <p class="section-subtitle light">Support the work of GMA City Complex through your generous giving.</p>
+            <div class="giving-card">
+                <div class="giving-icon">&#128176;</div>
+                <h3>Bank Transfer</h3>
+                <p>Bank: <strong id="givingBank">Ecobank</strong></p>
+                <p>Account Number: <strong id="givingAcct">4331097600</strong></p>
+                <p>Account Name: <strong>GMA City Complex</strong></p>
+                <button class="btn btn-primary btn-copy" id="copyAcct">Copy Account Number</button>
+                <div id="copyMessage" class="copy-message"></div>
+            </div>
+            <div class="text-center mt-4">
+                <a href="pages/projects.html" class="btn btn-secondary">View Church Projects</a>
+            </div>
+        </div>
+    </section>
+
+    <section class="section" id="prayer-wall-preview">
+        <div class="container">
+            <h2 class="section-title">Prayer Wall</h2>
+            <p class="section-subtitle">Stand in prayer with our community.</p>
+            <div id="prayerWallPreview" class="grid" style="grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+                <div class="text-center text-muted text-sm" style="grid-column:1/-1;padding:20px">Loading prayer requests...</div>
+            </div>
+            <div class="text-center mt-4">
+                <a href="pages/prayer-wall.html" class="btn btn-outline-blue">View Full Prayer Wall &rarr;</a>
+                <a href="pages/prayer-request.html" class="btn btn-primary" style="margin-left:10px">Submit Prayer Request</a>
+            </div>
+        </div>
+    </section>
+
+    <section class="section section-alt" id="contact">
+        <div class="container">
+            <h2 class="section-title">Contact Us</h2>
+            <p class="section-subtitle">Reach out to us anytime — we are here for you.</p>
+            <div class="contact-grid">
+                <div class="contact-card">
+                    <div class="contact-icon">&#9742;</div>
+                    <h3>Call Us</h3>
+                    <a href="tel:+2348169761695" class="contact-phone">08169761695</a>
+                    <p>Our lines are open during working hours.</p>
+                </div>
+                <div class="contact-card">
+                    <div class="contact-icon">&#9993;</div>
+                    <h3>Email Us</h3>
+                    <a href="mailto:info@gmacitycomplex.org" class="contact-phone" style="font-size:1.2rem">info@gmacitycomplex.org</a>
+                    <p>We respond within 24 hours.</p>
+                </div>
+                <div class="contact-card">
+                    <div class="contact-icon">&#128172;</div>
+                    <h3>WhatsApp</h3>
+                    <a href="https://wa.me/2348169761695" class="contact-phone" style="font-size:1.2rem">+234 816 976 1695</a>
+                    <p>Send us a message anytime.</p>
+                </div>
+            </div>
+            <div class="text-center mt-4">
+                <a href="pages/contact.html" class="btn btn-outline-blue">Full Contact Page &rarr;</a>
+            </div>
+        </div>
+    </section>
+
+    <div id="footerContainer"></div>
+
+    <div style="position:fixed;bottom:24px;right:24px;z-index:200">
+        <a href="pages/chat.html" style="display:flex;align-items:center;justify-content:center;width:60px;height:60px;background:var(--royal-blue);color:#fff;border-radius:50%;font-size:1.5rem;box-shadow:var(--shadow-lg);text-decoration:none" title="Chat With Us">&#128172;</a>
+    </div>
+
+    <a href="pages/booking.html" style="position:fixed;bottom:24px;left:24px;z-index:200;background:var(--danger);color:#fff;display:flex;align-items:center;gap:8px;padding:12px 20px;border-radius:var(--radius-full);font-weight:600;font-size:0.9rem;text-decoration:none;box-shadow:var(--shadow-lg)">
+        &#128680; Need Help?
+    </a>
+
+    <script src="js/app.js"></script>
+    <script src="js/components.js"></script>
+    <script src="js/api.js"></script>
+    <script>
+    document.getElementById('navContainer').innerHTML = renderPublicNav('home');
+    loadSiteSettings().then(function(s) {
+        document.getElementById('footerContainer').innerHTML = renderFooter();
+        var settings = window._siteSettings || {};
+        if (settings.site_name) document.getElementById('heroName').textContent = settings.site_name;
+        if (settings.hero_description) document.getElementById('heroDesc').textContent = settings.hero_description;
+        if (settings.giving_bank) document.getElementById('givingBank').textContent = settings.giving_bank;
+        if (settings.giving_account) document.getElementById('givingAcct').textContent = settings.giving_account;
+    });
+    setupNavigation();
+    renderServiceTimes();
+
+    API.events.upcoming().then(function(r) {
+        var events = (r && r.data) ? (Array.isArray(r.data) ? r.data : r.data.events || []) : [];
+        var evGrid = document.getElementById('eventsGrid');
+        if (events.length === 0) { evGrid.innerHTML = '<div class="text-center text-muted text-sm" style="grid-column:1/-1;padding:20px">No upcoming events</div>'; return; }
+        evGrid.innerHTML = '';
+        events.slice(0, 3).forEach(function(e) {
+            var dateStr = e.startDate || e.date || '';
+            var d = new Date(dateStr + 'T00:00:00');
+            var day = d.getDate();
+            var month = d.toLocaleString('en', { month: 'short' });
+            var timeStr = e.startTime || e.time || '';
+            evGrid.innerHTML += '<div class="event-card"><div class="event-date"><div class="day">' + day + '</div><div class="month">' + month + '</div></div><div class="event-body"><h3>' + escapeHtml(e.title || '') + '</h3><div class="event-meta"><span>\uD83D\uDCC5 ' + escapeHtml(dateStr) + (timeStr ? ' &middot; ' + escapeHtml(timeStr) : '') + '</span><span>\uD83D\uDCCD ' + escapeHtml(e.location || 'GMA City Complex') + '</span></div><p style="font-size:0.9rem;color:var(--gray-600);margin-bottom:12px">' + escapeHtml(e.description || '') + '</p>' + (e.registrationRequired ? '<a href="pages/events.html" class="btn btn-primary btn-sm">Register</a>' : '<a href="pages/events.html" class="btn btn-outline-blue btn-sm">Learn More</a>') + '</div></div>';
+        });
+    }).catch(function() { document.getElementById('eventsGrid').innerHTML = '<div class="text-center text-muted text-sm" style="grid-column:1/-1;padding:20px">Unable to load events</div>'; });
+
+    API.sermons.recent(3).then(function(r) {
+        var sermons = (r && r.data) ? (Array.isArray(r.data) ? r.data : r.data.sermons || []) : [];
+        var sGrid = document.getElementById('sermonsGrid');
+        if (sermons.length === 0) { sGrid.innerHTML = '<div class="text-center text-muted text-sm" style="grid-column:1/-1;padding:20px">No sermons yet</div>'; return; }
+        sGrid.innerHTML = '';
+        sermons.forEach(function(s) {
+            sGrid.innerHTML += '<div class="sermon-card"><div class="sermon-thumb"><div class="play-btn">&#9654;</div></div><div class="sermon-body"><h3>' + escapeHtml(s.title || '') + '</h3><div class="sermon-meta">' + escapeHtml(s.speaker || '') + ' &middot; ' + escapeHtml(s.date || s.sermonDate || '') + (s.duration ? ' &middot; ' + escapeHtml(s.duration) : '') + '</div>' + (s.scriptureReference || s.bibleRef ? '<p style="margin-top:8px;font-size:0.85rem;color:var(--gray-500)">' + escapeHtml(s.scriptureReference || s.bibleRef) + '</p>' : '') + '</div></div>';
+        });
+    }).catch(function() { document.getElementById('sermonsGrid').innerHTML = '<div class="text-center text-muted text-sm" style="grid-column:1/-1;padding:20px">Unable to load sermons</div>'; });
+
+    API.testimonies.approved(1, 3).then(function(r) {
+        var testimonies = (r && r.data) ? (Array.isArray(r.data) ? r.data : r.data.testimonies || []) : [];
+        var tGrid = document.getElementById('testimoniesGrid');
+        if (testimonies.length === 0) { tGrid.innerHTML = '<div class="text-center text-muted text-sm" style="grid-column:1/-1;padding:20px">No testimonies yet</div>'; return; }
+        tGrid.innerHTML = '';
+        testimonies.forEach(function(t) {
+            tGrid.innerHTML += '<div class="testimony-card"><div class="badge badge-gold" style="margin-bottom:8px">' + escapeHtml(t.category || 'Testimony') + '</div><p class="testimony-text">"' + escapeHtml(t.text || t.content || '') + '"</p><div class="testimony-author"><div class="avatar avatar-sm">' + getInitials(t.name || t.authorName || t.author_name || '') + '</div><div><strong style="font-size:0.9rem">' + escapeHtml(t.name || t.authorName || t.author_name || 'Member') + '</strong><br><span class="text-muted text-xs">' + escapeHtml(t.date || t.createdAt || '') + '</span></div></div></div>';
+        });
+    }).catch(function() { document.getElementById('testimoniesGrid').innerHTML = '<div class="text-center text-muted text-sm" style="grid-column:1/-1;padding:20px">Unable to load testimonies</div>'; });
+
+    API.prayer.wall(1, 3).then(function(r) {
+        var prayers = (r && r.data) ? (Array.isArray(r.data) ? r.data : r.data.prayers || r.data.requests || []) : [];
+        var pGrid = document.getElementById('prayerWallPreview');
+        var publicPrayers = prayers.filter(function(p) { return (p.visibility || 'public') === 'public'; });
+        if (publicPrayers.length === 0) { pGrid.innerHTML = '<div class="text-center text-muted text-sm" style="grid-column:1/-1;padding:20px">No public prayer requests</div>'; return; }
+        pGrid.innerHTML = '';
+        publicPrayers.slice(0, 3).forEach(function(p) {
+            var prayedCount = p.prayedCount || p.prayed_count || p.prayerCount || 0;
+            pGrid.innerHTML += '<div class="prayer-card"><div style="display:flex;justify-content:space-between;align-items:center"><strong style="font-size:0.9rem;color:var(--royal-deep)">' + escapeHtml(p.category || 'General') + '</strong>' + getStatusBadge(p.status || 'received') + '</div><p class="prayer-text">"' + escapeHtml(p.description || p.text || p.request || '') + '"</p><div class="prayer-meta"><span>\uD83D\uDE4F ' + prayedCount + ' people prayed</span><span>' + timeAgo(p.createdAt || p.created_at) + '</span></div></div>';
+        });
+    }).catch(function() { document.getElementById('prayerWallPreview').innerHTML = '<div class="text-center text-muted text-sm" style="grid-column:1/-1;padding:20px">Unable to load</div>'; });
+
+    document.getElementById('copyAcct').addEventListener('click', function() {
+        navigator.clipboard.writeText(document.getElementById('givingAcct').textContent).then(function() {
+            var msg = document.getElementById('copyMessage');
+            msg.textContent = 'Account number copied!'; msg.classList.add('show');
+            setTimeout(function() { msg.classList.remove('show'); }, 3000);
+        });
+    });
+    </script>
+</body>
+</html>

@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Counselors - GMA City Complex Admin</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <div id="app"></div>
+    <script src="../js/app.js"></script>
+    <script src="../js/components.js"></script>
+    <script src="../js/layouts.js"></script>
+    <script src="../js/api.js"></script>
+    <script>
+    if (!requireAuth('admin')) throw new Error('Not authorized');
+    var allStaff = [];
+    var currentFilter = 'all';
+    var editingId = null;
+
+    function render() {
+        var filtered = currentFilter === 'all' ? allStaff : allStaff.filter(function(s) { return s.status === currentFilter; });
+        var available = allStaff.filter(function(s) { return s.status === 'available'; }).length;
+        var busy = allStaff.filter(function(s) { return s.status === 'busy'; }).length;
+        var content = '<div class="content-header"><div><h1 class="page-title">Counselors & Pastors</h1><p class="page-description">Manage pastoral care team.</p></div><div><button class="btn btn-primary btn-sm" onclick="openModal()">+ Add Counselor</button></div></div>';
+        content += '<div class="stats-grid"><div class="stat-card"><div class="stat-icon">\uD83D\uDC64</div><div class="stat-info"><span>Total</span><strong>' + allStaff.length + '</strong></div></div><div class="stat-card"><div class="stat-info"><span>Available</span><strong>' + available + '</strong></div></div><div class="stat-card"><div class="stat-info"><span>Busy</span><strong>' + busy + '</strong></div></div></div>';
+        content += '<div class="tabs"><button class="tab ' + (currentFilter === 'all' ? 'active' : '') + '" onclick="window._filter(\'all\')">All</button><button class="tab ' + (currentFilter === 'available' ? 'active' : '') + '" onclick="window._filter(\'available\')">Available</button><button class="tab ' + (currentFilter === 'busy' ? 'active' : '') + '" onclick="window._filter(\'busy\')">Busy</button></div>';
+        content += '<div id="counselorsGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:20px;margin-top:16px">';
+        if (filtered.length === 0) content += '<div class="empty-state" style="grid-column:1/-1"><p>No counselors found.</p></div>';
+        else filtered.forEach(function(s) {
+            var name = s.name || s.fullName || (s.firstName || '') + ' ' + (s.lastName || '');
+            content += '<div class="card"><div class="card-body" style="padding:24px"><div style="display:flex;align-items:start;gap:14px;margin-bottom:16px"><div class="avatar" style="width:56px;height:56px;font-size:1.2rem;background:var(--royal-blue);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0">' + getInitials(name) + '</div><div style="flex:1"><h3 style="margin:0 0 2px;font-size:1.05rem">' + escapeHtml(name) + '</h3><div style="font-size:0.85rem;color:var(--gray-600)">' + escapeHtml(s.position || s.role || '') + '</div>' + getAvailabilityBadge(s.availability || s.status) + '</div></div>' +
+            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px"><div><span class="text-xs text-muted">Department</span><div class="text-sm" style="font-weight:600">' + escapeHtml(s.department || 'Pastoral') + '</div></div><div><span class="text-xs text-muted">Specialization</span><div class="text-sm" style="font-weight:600">' + escapeHtml(s.specialization || 'General') + '</div></div></div>' +
+            (s.bio ? '<div style="padding:12px;background:var(--gray-50);border-radius:var(--radius)"><span class="text-xs text-muted">Bio</span><p class="text-sm" style="margin:2px 0 0">' + escapeHtml(s.bio) + '</p></div>' : '') +
+            '<div style="margin-top:12px;display:flex;gap:8px"><button class="btn btn-sm btn-primary" onclick="openModal(' + s.id + ')">Edit</button><button class="btn btn-sm" style="background:var(--danger);color:#fff" onclick="deleteStaff(' + s.id + ')">Delete</button></div>' +
+            '</div></div>';
+        });
+        content += '</div>';
+        content += '<div class="modal-backdrop" id="staffModal"><div class="modal" style="max-width:560px"><div class="modal-header"><h3 id="staffModalTitle">Add Counselor</h3><button class="modal-close" onclick="closeModal(\'staffModal\')">&times;</button></div><div class="modal-body">' +
+            '<div class="form-group"><label>Name</label><input type="text" id="staffName" class="form-control"></div>' +
+            '<div class="form-group"><label>Email</label><input type="email" id="staffEmail" class="form-control"></div>' +
+            '<div class="form-group"><label>Password</label><input type="text" id="staffPassword" class="form-control" placeholder="Leave blank to keep existing"></div>' +
+            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px"><div class="form-group"><label>Role</label><select id="staffRole" class="form-control"><option value="pastor">Pastor</option><option value="counselor">Counselor</option><option value="admin">Admin</option></select></div><div class="form-group"><label>Position</label><input type="text" id="staffPosition" class="form-control"></div></div>' +
+            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px"><div class="form-group"><label>Department</label><input type="text" id="staffDepartment" class="form-control"></div><div class="form-group"><label>Specialization</label><input type="text" id="staffSpecialization" class="form-control"></div></div>' +
+            '<div class="form-group"><label>Bio</label><textarea id="staffBio" class="form-control" rows="2"></textarea></div>' +
+            '<div class="form-group"><label>Availability</label><select id="staffAvailability" class="form-control"><option value="available">Available</option><option value="busy">Busy</option></select></div>' +
+            '</div><div class="modal-footer"><button class="btn btn-ghost btn-sm" onclick="closeModal(\'staffModal\')">Cancel</button><button class="btn btn-primary btn-sm" onclick="saveStaff()">Save</button></div></div></div>';
+        document.getElementById('app').innerHTML = renderAdminLayout('counselors', content);
+        document.getElementById('sidebarToggle').addEventListener('click', function() { document.getElementById('sidebar').classList.toggle('open'); });
+    }
+
+    function getAvailabilityBadge(status) {
+        if (status === 'available') return '<span class="badge badge-success">Available</span>';
+        if (status === 'busy') return '<span class="badge badge-danger">Busy</span>';
+        return '<span class="badge badge-info">' + escapeHtml(status || 'Active') + '</span>';
+    }
+
+    function openModal(id) {
+        editingId = id;
+        if (id) {
+            var s = allStaff.find(function(s) { return s.id === id; });
+            document.getElementById('staffModalTitle').textContent = 'Edit Counselor';
+            document.getElementById('staffName').value = s.name || s.fullName || '';
+            document.getElementById('staffEmail').value = s.email || '';
+            document.getElementById('staffPassword').value = '';
+            document.getElementById('staffRole').value = s.role || 'pastor';
+            document.getElementById('staffPosition').value = s.position || '';
+            document.getElementById('staffDepartment').value = s.department || '';
+            document.getElementById('staffSpecialization').value = s.specialization || '';
+            document.getElementById('staffBio').value = s.bio || '';
+            document.getElementById('staffAvailability').value = s.availability || s.status || 'available';
+        } else {
+            document.getElementById('staffModalTitle').textContent = 'Add Counselor';
+            document.getElementById('staffName').value = '';
+            document.getElementById('staffEmail').value = '';
+            document.getElementById('staffPassword').value = '';
+            document.getElementById('staffRole').value = 'pastor';
+            document.getElementById('staffPosition').value = '';
+            document.getElementById('staffDepartment').value = '';
+            document.getElementById('staffSpecialization').value = '';
+            document.getElementById('staffBio').value = '';
+            document.getElementById('staffAvailability').value = 'available';
+        }
+        showModal('staffModal');
+    }
+
+    function saveStaff() {
+        var data = {
+            name: document.getElementById('staffName').value.trim(),
+            email: document.getElementById('staffEmail').value.trim(),
+            role: document.getElementById('staffRole').value,
+            position: document.getElementById('staffPosition').value.trim(),
+            department: document.getElementById('staffDepartment').value.trim(),
+            specialization: document.getElementById('staffSpecialization').value.trim(),
+            bio: document.getElementById('staffBio').value.trim(),
+            availability: document.getElementById('staffAvailability').value,
+            status: document.getElementById('staffAvailability').value
+        };
+        if (!data.name || !data.email) { showToast('Name and email required', 'error'); return; }
+        var promise = editingId ? API.staff.update(editingId, data) : API.staff.create(data);
+        promise.then(function() { closeModal('staffModal'); showToast(editingId ? 'Updated' : 'Created', 'success'); logFrontendAction(editingId ? 'update' : 'create', 'staff', editingId || 'new', data.name); loadStaff(); }).catch(function() { showToast('Failed', 'error'); });
+    }
+
+    function deleteStaff(id) {
+        if (!confirm('Delete this counselor?')) return;
+        API.staff.delete(id).then(function() { showToast('Deleted', 'success'); logFrontendAction('delete', 'staff', id, 'Staff deleted'); loadStaff(); }).catch(function() { showToast('Failed', 'error'); });
+    }
+
+    function loadStaff() {
+        API.staff.getAll({}).then(function(r) {
+            allStaff = (r && r.data) ? (Array.isArray(r.data) ? r.data : r.data.staff || []) : [];
+            render();
+        }).catch(function() { allStaff = []; render(); });
+    }
+
+    window._filter = function(f) { currentFilter = f; render(); };
+    render();
+    loadStaff();
+    </script>
+</body>
+</html>

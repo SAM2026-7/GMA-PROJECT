@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Giving - GMA City Complex</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <div id="navContainer"></div>
+    <div class="page-header">
+        <div class="container">
+            <h1>Giving</h1>
+            <p>Support the work of GMA City Complex through your generous giving.</p>
+            <div class="breadcrumb"><a href="/index.html">Home</a><span>/</span><span>Giving</span></div>
+        </div>
+    </div>
+    <section class="section">
+        <div class="container">
+            <h2 class="section-title mb-2">Giving Categories</h2>
+            <p class="section-subtitle">Choose a category for your donation</p>
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:24px;margin-bottom:48px" id="givingCategories"></div>
+            <div class="giving-card">
+                <div class="giving-icon">🏦</div>
+                <h3>Bank Transfer</h3>
+                <p>Make a transfer to the account below</p>
+                <p><strong id="bankName"></strong></p>
+                <p style="font-size:1.4rem;font-weight:800;color:var(--royal-deep);letter-spacing:2px;margin:10px 0" id="accountNumber"></p>
+                <p class="text-muted text-sm">Account Name: GMA City Complex</p>
+                <button class="btn btn-primary btn-sm btn-copy" onclick="copyAccount()">Copy Account Number</button>
+                <p class="copy-message" id="copyMessage">Copied to clipboard!</p>
+            </div>
+        </div>
+    </section>
+    <div id="memberGivingSection" style="display:none">
+        <section class="section section-alt">
+            <div class="container">
+                <h2 class="section-title mb-2">My Giving</h2>
+                <p class="section-subtitle">View your giving history and summaries</p>
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:20px;margin-bottom:32px" id="givingSummary"></div>
+                <div class="card">
+                    <div class="card-header">Giving History</div>
+                    <div class="card-body">
+                        <div class="table-wrap">
+                            <table class="table">
+                                <thead><tr><th>Date</th><th>Category</th><th>Amount</th><th>Method</th><th>Reference</th><th>Status</th></tr></thead>
+                                <tbody id="givingTableBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+    <div id="footerContainer"></div>
+    <script src="../js/app.js"></script>
+    <script src="../js/components.js"></script>
+    <script src="../js/api.js"></script>
+    <script>
+    document.getElementById('navContainer').innerHTML = renderPublicNav('');
+    document.getElementById('footerContainer').innerHTML = renderFooter();
+    setupNavigation();
+
+    var siteSettings = {};
+
+    var categories = [
+        { icon: '🏛', title: 'Tithe', description: 'Honor the Lord with your tithes and offerings. Malachi 3:10 calls us to bring the full tithe into the storehouse.' },
+        { icon: '❤️', title: 'Offering', description: 'Give freely and cheerfully as an expression of your gratitude and worship to God.' },
+        { icon: '🌍', title: 'Missions', description: 'Support missionary work and evangelism efforts across Nigeria and around the world.' },
+        { icon: '🏗', title: 'Building Projects', description: 'Contribute to the construction and renovation of our worship facilities and community spaces.' },
+        { icon: '🎁', title: 'Special Donations', description: 'Make one-time donations for special causes, outreach events, or charitable needs.' }
+    ];
+
+    var catContainer = document.getElementById('givingCategories');
+    categories.forEach(function(cat) {
+        catContainer.innerHTML += '<div class="card giving-card"><div class="card-body"><div class="giving-icon">' + cat.icon + '</div><h3>' + escapeHtml(cat.title) + '</h3><p>' + escapeHtml(cat.description) + '</p></div></div>';
+    });
+
+    function copyAccount() {
+        var num = siteSettings.giving_account || siteSettings.givingAccount || '0123456789';
+        navigator.clipboard.writeText(num).then(function() {
+            var msg = document.getElementById('copyMessage');
+            msg.classList.add('show');
+            setTimeout(function() { msg.classList.remove('show'); }, 2500);
+        });
+    }
+
+    function renderMemberGiving(history) {
+        var user = getUser();
+        if (!user || !history || history.length === 0) return;
+        document.getElementById('memberGivingSection').style.display = '';
+        var totalAll = 0, monthlyTotal = 0, annualTotal = 0;
+        var now = new Date();
+        history.forEach(function(g) {
+            totalAll += (g.amount || 0);
+            var gd = new Date(g.date || g.created_at);
+            if (gd.getMonth() === now.getMonth() && gd.getFullYear() === now.getFullYear()) monthlyTotal += (g.amount || 0);
+            if (gd.getFullYear() === now.getFullYear()) annualTotal += (g.amount || 0);
+        });
+        document.getElementById('givingSummary').innerHTML =
+            '<div class="card"><div class="card-body text-center"><p class="text-sm text-muted mb-1">Total Giving</p><p style="font-size:1.6rem;font-weight:800;color:var(--royal-deep)">' + formatCurrency(totalAll) + '</p></div></div>' +
+            '<div class="card"><div class="card-body text-center"><p class="text-sm text-muted mb-1">This Month</p><p style="font-size:1.6rem;font-weight:800;color:var(--royal-deep)">' + formatCurrency(monthlyTotal) + '</p></div></div>' +
+            '<div class="card"><div class="card-body text-center"><p class="text-sm text-muted mb-1">This Year</p><p style="font-size:1.6rem;font-weight:800;color:var(--royal-deep)">' + formatCurrency(annualTotal) + '</p></div></div>';
+        var tbody = document.getElementById('givingTableBody');
+        history.forEach(function(g) {
+            var status = g.status || 'completed';
+            var badge = status === 'completed' || status === 'confirmed' ? 'badge-success' : status === 'pending' ? 'badge-warning' : 'badge-secondary';
+            tbody.innerHTML += '<tr><td>' + escapeHtml((g.date || g.created_at || '').substring(0, 10)) + '</td>' +
+                '<td><span class="badge badge-primary">' + escapeHtml(g.category || '') + '</span></td>' +
+                '<td>' + formatCurrency(g.amount || 0) + '</td>' +
+                '<td>' + escapeHtml(g.method || '') + '</td>' +
+                '<td>' + escapeHtml(g.reference || '') + '</td>' +
+                '<td><span class="badge ' + badge + '">' + escapeHtml(status) + '</span></td></tr>';
+        });
+    }
+
+    API.siteSettings.get().then(function(r) {
+        siteSettings = (r && r.data) ? r.data : {};
+        document.getElementById('bankName').textContent = siteSettings.giving_bank || siteSettings.givingBank || 'GMA City Complex Bank';
+        document.getElementById('accountNumber').textContent = siteSettings.giving_account || siteSettings.givingAccount || '0123456789';
+    }).catch(function() {
+        document.getElementById('bankName').textContent = 'GMA City Complex Bank';
+        document.getElementById('accountNumber').textContent = '0123456789';
+    });
+
+    var user = getUser();
+    if (user) {
+        API.submissions.getAll({ type: 'giving', memberId: user.memberId || user.id }).then(function(r) {
+            var history = (r && r.data) ? (Array.isArray(r.data) ? r.data : r.data.submissions || []) : [];
+            renderMemberGiving(history);
+        }).catch(function() {});
+    }
+    </script>
+</body>
+</html>

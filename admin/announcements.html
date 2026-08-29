@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Announcements - Admin - GMA City Complex</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <div id="app"></div>
+    <script src="../js/app.js"></script>
+    <script src="../js/components.js"></script>
+    <script src="../js/layouts.js"></script>
+    <script src="../js/api.js"></script>
+    <script>
+    if (!requireAuth('admin')) throw new Error('Not authorized');
+    var allAnnouncements = [];
+    var editingId = null;
+
+    function render() {
+        var content = '<div class="content-header"><div><h1 class="page-title">Announcements <span class="badge">' + allAnnouncements.length + '</span></h1></div><div><button class="btn btn-primary" onclick="openModal(null)">+ New Announcement</button></div></div>';
+        if (allAnnouncements.length === 0) content += '<div class="empty-state"><p>No announcements yet.</p></div>';
+        else allAnnouncements.forEach(function(a) {
+            var status = a.status || 'active';
+            var statusColor = status === 'active' ? 'var(--success)' : status === 'draft' ? 'var(--warning-dark)' : 'var(--gray-400)';
+            content += '<div class="card" style="margin-bottom:12px"><div class="card-body"><div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px"><div><h3 style="margin:0;font-size:1.05rem">' + escapeHtml(a.title || '') + '</h3><div style="display:flex;gap:6px;margin-top:6px"><span class="badge" style="background:' + statusColor + ';color:#fff">' + escapeHtml(status) + '</span>' + (a.audience ? '<span class="badge badge-primary">' + escapeHtml(a.audience) + '</span>' : '') + '</div></div><div style="display:flex;gap:6px"><button class="btn btn-sm btn-primary" onclick="openModal(' + a.id + ')">Edit</button><button class="btn btn-sm" style="background:var(--danger-bg);color:var(--danger-dark)" onclick="deleteAnnouncement(' + a.id + ')">Delete</button></div></div>' +
+            '<p style="color:var(--gray-600);font-size:0.9rem;margin:8px 0">' + escapeHtml(a.content || '') + '</p>' +
+            '<div style="font-size:0.8rem;color:var(--gray-500)">' + escapeHtml(a.createdAt || a.date || '') + '</div></div></div>';
+        });
+        content += '<div class="modal-backdrop" id="announcementModal"><div class="modal" style="max-width:600px"><div class="modal-header"><h3 id="annModalTitle">New Announcement</h3><button class="modal-close" onclick="closeModal(\'announcementModal\')">&times;</button></div><div class="modal-body">' +
+            '<div class="form-group"><label>Title</label><input type="text" id="annTitle" class="form-control"></div>' +
+            '<div class="form-group"><label>Content</label><textarea id="annContent" class="form-control" rows="4"></textarea></div>' +
+            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px"><div class="form-group"><label>Audience</label><select id="annAudience" class="form-control"><option value="all">All Members</option><option value="members">Members Only</option><option value="visitors">Visitors</option></select></div><div class="form-group"><label>Status</label><select id="annStatus" class="form-control"><option value="active">Active</option><option value="draft">Draft</option></select></div></div>' +
+            '</div><div class="modal-footer"><button class="btn btn-ghost btn-sm" onclick="closeModal(\'announcementModal\')">Cancel</button><button class="btn btn-primary btn-sm" onclick="saveAnnouncement()">Save</button></div></div></div>';
+        document.getElementById('app').innerHTML = renderAdminLayout('announcements', content);
+        document.getElementById('sidebarToggle').addEventListener('click', function() { document.getElementById('sidebar').classList.toggle('open'); });
+    }
+
+    function openModal(id) {
+        editingId = id;
+        if (id) {
+            var a = allAnnouncements.find(function(a) { return a.id === id; });
+            document.getElementById('annModalTitle').textContent = 'Edit Announcement';
+            document.getElementById('annTitle').value = a.title || '';
+            document.getElementById('annContent').value = a.content || '';
+            document.getElementById('annAudience').value = a.audience || 'all';
+            document.getElementById('annStatus').value = a.status || 'active';
+        } else {
+            document.getElementById('annModalTitle').textContent = 'New Announcement';
+            document.getElementById('annTitle').value = '';
+            document.getElementById('annContent').value = '';
+            document.getElementById('annAudience').value = 'all';
+            document.getElementById('annStatus').value = 'active';
+        }
+        showModal('announcementModal');
+    }
+
+    function saveAnnouncement() {
+        var data = { title: document.getElementById('annTitle').value.trim(), content: document.getElementById('annContent').value.trim(), audience: document.getElementById('annAudience').value, status: document.getElementById('annStatus').value };
+        if (!data.title || !data.content) { showToast('Title and content required', 'error'); return; }
+        var promise = editingId ? API.announcements.update(editingId, data) : API.announcements.create(data);
+        promise.then(function() { closeModal('announcementModal'); showToast(editingId ? 'Updated' : 'Created', 'success'); logFrontendAction(editingId ? 'update' : 'create', 'announcement', editingId || 'new', data.title); loadAnnouncements(); }).catch(function() { showToast('Failed', 'error'); });
+    }
+
+    function deleteAnnouncement(id) {
+        if (!confirm('Delete this announcement?')) return;
+        API.announcements.delete(id).then(function() { showToast('Deleted', 'success'); logFrontendAction('delete', 'announcement', id, 'Announcement deleted'); loadAnnouncements(); }).catch(function() { showToast('Failed', 'error'); });
+    }
+
+    function loadAnnouncements() {
+        API.announcements.getAll({}).then(function(r) {
+            allAnnouncements = (r && r.data) ? (Array.isArray(r.data) ? r.data : r.data.announcements || []) : [];
+            render();
+        }).catch(function() { allAnnouncements = []; render(); });
+    }
+    loadAnnouncements();
+    </script>
+</body>
+</html>

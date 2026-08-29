@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat - GMA City Complex</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <div id="app"></div>
+    <script src="../js/app.js"></script>
+    <script src="../js/components.js"></script>
+    <script src="../js/layouts.js"></script>
+    <script src="../js/api.js"></script>
+    <script>
+    if (!requireMember()) throw new Error('Not authorized');
+    var user = getUser();
+    var myChats = [];
+    var activeChatId = null;
+    var allMessages = {};
+
+    function getMessages(chatId) { return allMessages[chatId] || []; }
+
+    function renderChatApp() {
+        var activeChat = myChats.find(function(c) { return c.id === activeChatId; });
+        var msgs = activeChatId ? getMessages(activeChatId) : [];
+
+        var chatListHtml = '';
+        myChats.forEach(function(c) {
+            var isActive = c.id === activeChatId;
+            var otherName = c.participantNames ? c.participantNames.filter(function(n) { return n !== user.name; })[0] : c.title || 'Care Team';
+            chatListHtml += '<div class="chat-list-item' + (isActive ? ' active' : '') + '" data-chat="' + c.id + '">' +
+                '<div class="avatar">' + getInitials(otherName) + '</div>' +
+                '<div class="chat-info"><div class="chat-name">' + escapeHtml(otherName) + '</div>' +
+                '<div class="chat-preview">' + escapeHtml(c.lastMessage || '') + '</div></div>' +
+                '<div class="chat-time">' + timeAgo(c.lastTime || c.updatedAt) + '</div></div>';
+        });
+
+        var msgsHtml = '';
+        msgs.forEach(function(m) {
+            var isSent = (m.senderId || m.sender_id) === user.id || m.senderName === user.name;
+            msgsHtml += '<div class="chat-message ' + (isSent ? 'sent' : 'received') + '">' +
+                '<div class="chat-bubble">' + escapeHtml(m.text || m.content || '') + '</div>' +
+                '<div class="chat-time-stamp">' + formatDateTime(m.time || m.createdAt || m.created_at) + (isSent ? ' ✓✓' : '') + '</div></div>';
+        });
+
+        var otherName = activeChat ? (activeChat.participantNames ? activeChat.participantNames.filter(function(n) { return n !== user.name; })[0] : activeChat.title || 'Care Team') : '';
+        var headerHtml = activeChat ?
+            '<div class="chat-header"><div class="avatar">' + getInitials(otherName) + '</div>' +
+            '<div><strong>' + escapeHtml(otherName) + '</strong><br><span class="text-sm text-muted"><span class="status-dot online"></span> Online</span></div></div>' :
+            '<div class="chat-header"><strong>Select a conversation</strong></div>';
+
+        var content = '<div class="content-header"><div><h1 class="page-title">Chat</h1><p class="page-description">Communicate with your pastoral care team.</p></div></div>' +
+            '<div class="chat-layout" style="height:calc(100vh - 200px)">' +
+            '<div class="chat-sidebar"><div class="chat-sidebar-header"><input type="text" class="form-control" placeholder="Search conversations..." id="chatSearch"></div>' +
+            '<div class="chat-list" id="chatList">' + (chatListHtml || '<div class="empty-state" style="padding:40px"><p>No conversations yet.</p></div>') + '</div></div>' +
+            '<div class="chat-main">' + headerHtml +
+            '<div class="chat-messages" id="chatMessages">' + (msgs.length > 0 ? msgsHtml : '<div class="empty-state" style="margin:auto"><div class="empty-icon">💬</div><h3>No messages yet</h3><p>Start a conversation with your care team.</p></div>') + '</div>' +
+            '<div class="chat-input"><input type="text" id="chatInput" placeholder="Type a message..." ' + (!activeChat ? 'disabled' : '') + '>' +
+            '<button class="btn btn-primary btn-sm" id="sendBtn" ' + (!activeChat ? 'disabled' : '') + '>Send</button></div></div></div>';
+
+        document.getElementById('app').innerHTML = renderMemberLayout('chat', content);
+        document.getElementById('sidebarToggle').addEventListener('click', function() { document.getElementById('sidebar').classList.toggle('open'); });
+
+        document.querySelectorAll('[data-chat]').forEach(function(el) {
+            el.addEventListener('click', function() { activeChatId = el.dataset.chat; renderChatApp(); });
+        });
+
+        var input = document.getElementById('chatInput');
+        var sendBtn = document.getElementById('sendBtn');
+        var msgContainer = document.getElementById('chatMessages');
+
+        function sendMessage() {
+            if (!input.value.trim() || !activeChatId) return;
+            var msgData = { conversationId: activeChatId, text: input.value.trim(), senderId: user.id, senderName: user.name || user.fullName };
+            input.value = '';
+            API.chat.sendMessage(msgData).then(function(r) {
+                var newMsg = (r && r.data) ? r.data : msgData;
+                if (!allMessages[activeChatId]) allMessages[activeChatId] = [];
+                allMessages[activeChatId].push(newMsg);
+                var chat = myChats.find(function(c) { return c.id === activeChatId; });
+                if (chat) { chat.lastMessage = newMsg.text || msgData.text; chat.lastTime = new Date().toISOString(); }
+                renderChatApp();
+                if (msgContainer) msgContainer.scrollTop = msgContainer.scrollHeight;
+            }).catch(function() {
+                if (!allMessages[activeChatId]) allMessages[activeChatId] = [];
+                allMessages[activeChatId].push(msgData);
+                var chat = myChats.find(function(c) { return c.id === activeChatId; });
+                if (chat) { chat.lastMessage = msgData.text; chat.lastTime = new Date().toISOString(); }
+                renderChatApp();
+            });
+        }
+
+        if (sendBtn) sendBtn.addEventListener('click', sendMessage);
+        if (input) input.addEventListener('keypress', function(e) { if (e.key === 'Enter') sendMessage(); });
+        if (msgContainer) msgContainer.scrollTop = msgContainer.scrollHeight;
+
+        var searchInput = document.getElementById('chatSearch');
+        if (searchInput) {
+            searchInput.addEventListener('input', function() {
+                var term = this.value.toLowerCase();
+                document.querySelectorAll('[data-chat]').forEach(function(el) {
+                    var id = el.dataset.chat;
+                    var chat = myChats.find(function(c) { return c.id === id; });
+                    if (chat) {
+                        var name = chat.participantNames ? chat.participantNames.join(' ').toLowerCase() : (chat.title || '').toLowerCase();
+                        el.style.display = name.indexOf(term) !== -1 ? '' : 'none';
+                    }
+                });
+            });
+        }
+    }
+
+    renderChatApp();
+    API.chat.byMember(user.memberId || user.id).then(function(r) {
+        myChats = (r && r.data) ? (Array.isArray(r.data) ? r.data : r.data.conversations || []) : [];
+        if (myChats.length > 0) {
+            activeChatId = myChats[0].id;
+            loadAllMessages();
+        } else {
+            renderChatApp();
+        }
+    }).catch(function() { myChats = []; renderChatApp(); });
+
+    function loadAllMessages() {
+        var promises = myChats.map(function(c) {
+            return API.chat.getMessages(c.id).then(function(r) {
+                allMessages[c.id] = (r && r.data) ? (Array.isArray(r.data) ? r.data : r.data.messages || []) : [];
+            }).catch(function() { allMessages[c.id] = []; });
+        });
+        Promise.all(promises).then(function() { renderChatApp(); });
+    }
+    </script>
+</body>
+</html>

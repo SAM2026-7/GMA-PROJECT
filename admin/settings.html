@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings - GMA City Complex Admin</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <div id="app"></div>
+    <script src="../js/app.js"></script>
+    <script src="../js/components.js"></script>
+    <script src="../js/layouts.js"></script>
+    <script src="../js/api.js"></script>
+    <script>
+    if (!requireAuth('admin')) throw new Error('Not authorized');
+    var settings = {};
+
+    function render() {
+        var content = '<div class="content-header"><div><h1 class="page-title">Site Settings</h1><p class="page-description">Manage site configuration and content.</p></div></div>';
+        content += '<form id="settingsForm">';
+        content += '<div class="card" style="margin-bottom:20px"><div class="card-header">Identity</div><div class="card-body"><div class="form-group"><label>Site Name</label><input type="text" id="site_name" class="form-control" value="' + escapeHtml(settings.site_name || 'GMA City Complex') + '"></div><div class="form-group"><label>Hero Description</label><textarea id="hero_description" class="form-control" rows="3">' + escapeHtml(settings.hero_description || '') + '</textarea></div><button type="button" class="btn btn-primary btn-sm" onclick="saveSetting(\'identity\')">Save Identity</button></div></div>';
+        content += '<div class="card" style="margin-bottom:20px"><div class="card-header">Contact</div><div class="card-body"><div style="display:grid;grid-template-columns:1fr 1fr;gap:16px"><div class="form-group"><label>Phone</label><input type="text" id="contact_phone" class="form-control" value="' + escapeHtml(settings.contact_phone || '') + '"></div><div class="form-group"><label>Email</label><input type="email" id="contact_email" class="form-control" value="' + escapeHtml(settings.contact_email || '') + '"></div></div><div class="form-group"><label>Address</label><input type="text" id="contact_address" class="form-control" value="' + escapeHtml(settings.contact_address || '') + '"></div><button type="button" class="btn btn-primary btn-sm" onclick="saveSetting(\'contact\')">Save Contact</button></div></div>';
+        content += '<div class="card" style="margin-bottom:20px"><div class="card-header">Giving</div><div class="card-body"><div style="display:grid;grid-template-columns:1fr 1fr;gap:16px"><div class="form-group"><label>Bank Name</label><input type="text" id="giving_bank" class="form-control" value="' + escapeHtml(settings.giving_bank || 'Ecobank') + '"></div><div class="form-group"><label>Account Number</label><input type="text" id="giving_account" class="form-control" value="' + escapeHtml(settings.giving_account || '4331097600') + '"></div></div><button type="button" class="btn btn-primary btn-sm" onclick="saveSetting(\'giving\')">Save Giving</button></div></div>';
+        content += '<div class="card" style="margin-bottom:20px"><div class="card-header">Service Times</div><div class="card-body"><div style="display:grid;grid-template-columns:1fr 1fr;gap:16px"><div class="form-group"><label>Sunday Service</label><input type="text" id="sunday_service" class="form-control" value="' + escapeHtml(settings.sunday_service || '10:00 AM') + '"></div><div class="form-group"><label>Midweek Service</label><input type="text" id="midweek_service" class="form-control" value="' + escapeHtml(settings.midweek_service || '5:30 PM') + '"></div></div><button type="button" class="btn btn-primary btn-sm" onclick="saveSetting(\'services\')">Save Service Times</button></div></div>';
+        content += '</form>';
+        document.getElementById('app').innerHTML = renderAdminLayout('settings', content);
+        document.getElementById('sidebarToggle').addEventListener('click', function() { document.getElementById('sidebar').classList.toggle('open'); });
+    }
+
+    window.saveSetting = function(section) {
+        var keys = {};
+        if (section === 'identity') { keys = { site_name: document.getElementById('site_name').value, hero_description: document.getElementById('hero_description').value }; }
+        else if (section === 'contact') { keys = { contact_phone: document.getElementById('contact_phone').value, contact_email: document.getElementById('contact_email').value, contact_address: document.getElementById('contact_address').value }; }
+        else if (section === 'giving') { keys = { giving_bank: document.getElementById('giving_bank').value, giving_account: document.getElementById('giving_account').value }; }
+        else if (section === 'services') { keys = { sunday_service: document.getElementById('sunday_service').value, midweek_service: document.getElementById('midweek_service').value }; }
+        var promises = Object.keys(keys).map(function(k) { return API.content.updateSetting(k, keys[k]); });
+        Promise.all(promises).then(function() {
+            Object.keys(keys).forEach(function(k) { settings[k] = keys[k]; });
+            showToast(section.charAt(0).toUpperCase() + section.slice(1) + ' settings saved', 'success');
+            logFrontendAction('update', 'site_settings', section, 'Settings updated: ' + section);
+        }).catch(function() { showToast('Failed to save settings', 'error'); });
+    };
+
+    render();
+    API.siteSettings.get().then(function(r) {
+        var arr = (r && r.data) ? (Array.isArray(r.data) ? r.data : []) : [];
+        arr.forEach(function(s) { settings[s.key] = s.value; });
+        render();
+    }).catch(function() { render(); });
+    </script>
+</body>
+</html>

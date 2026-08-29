@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Prayer Requests - GMA City Complex</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <div id="app"></div>
+    <script src="../js/app.js"></script>
+    <script src="../js/components.js"></script>
+    <script src="../js/layouts.js"></script>
+    <script src="../js/api.js"></script>
+    <script>
+    if (!requireMember()) throw new Error('Not authorized');
+    var user = getUser();
+    var allPrayers = [];
+    var activeTab = 'all';
+
+    function render() {
+        var filtered = activeTab === 'all' ? allPrayers : allPrayers.filter(function(p) { return p.status === activeTab; });
+        var content = '<div class="content-header"><div><h1 class="page-title">My Prayer Requests</h1></div><button class="btn btn-primary" onclick="showModal(\'newPrayerModal\')">+ New Request</button></div>';
+        content += '<div class="tabs">';
+        ['all', 'received', 'being_prayed', 'follow_up'].forEach(function(t) { content += '<button class="tab ' + (activeTab === t ? 'active' : '') + '" onclick="window._tab(\'' + t + '\')">' + t.replace(/_/g, ' ').replace(/\b\w/g, function(l) { return l.toUpperCase(); }) + '</button>'; });
+        content += '</div>';
+        if (filtered.length === 0) content += '<div class="empty-state"><div class="empty-icon">\uD83D\uDE4F</div><h3>No Prayer Requests</h3><p>Submit a prayer request to receive support from our team.</p></div>';
+        else filtered.forEach(function(p) {
+            var prayedCount = p.prayedCount || p.prayed_count || 0;
+            content += '<div class="card" style="margin-bottom:12px"><div class="card-body"><div style="display:flex;justify-content:space-between;margin-bottom:8px"><strong>#' + escapeHtml(String(p.id).substring(0, 6)) + '</strong>' + getStatusBadge(p.status) + '</div><div style="display:flex;gap:8px;margin-bottom:8px"><span class="badge badge-info">' + escapeHtml(p.category || 'General') + '</span>' + (p.urgency === 'urgent' ? '<span class="badge badge-danger">Urgent</span>' : '') + '</div><p style="color:var(--gray-600);font-style:italic">\u201C' + escapeHtml(p.description || p.text || p.request || '') + '\u201D</p><div style="display:flex;justify-content:space-between;margin-top:12px;padding-top:12px;border-top:1px solid var(--gray-100)"><span class="text-xs text-muted">' + escapeHtml(p.createdAt || p.created_at || '') + '</span><span class="text-xs text-muted">\uD83D\uDE4F ' + prayedCount + ' prayed</span></div></div></div>';
+        });
+        content += '<div class="modal-backdrop" id="newPrayerModal"><div class="modal"><div class="modal-header"><h3>New Prayer Request</h3><button class="modal-close" onclick="closeModal(\'newPrayerModal\')">&times;</button></div><div class="modal-body">' +
+            '<div class="form-group"><label>Category</label><select id="prayerCategory" class="form-control" required><option value="">Select</option><option value="Family">Family</option><option value="Career">Career</option><option value="Health">Health</option><option value="Financial">Financial</option><option value="Spiritual Growth">Spiritual Growth</option><option value="Other">Other</option></select></div>' +
+            '<div class="form-group"><label>Prayer Request</label><textarea id="prayerText" class="form-control" rows="4" placeholder="Share your request..." required></textarea></div>' +
+            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px"><div class="form-group"><label>Urgency</label><select id="prayerUrgency" class="form-control"><option value="normal">Normal</option><option value="high">High</option><option value="urgent">Urgent</option></select></div><div class="form-group"><label>Visibility</label><select id="prayerVisibility" class="form-control"><option value="public">Public</option><option value="private">Private</option></select></div></div>' +
+            '</div><div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal(\'newPrayerModal\')">Cancel</button><button class="btn btn-primary" onclick="submitPrayer()">Submit</button></div></div></div>';
+        document.getElementById('app').innerHTML = renderMemberLayout('prayer-requests', content);
+        document.getElementById('sidebarToggle').addEventListener('click', function() { document.getElementById('sidebar').classList.toggle('open'); });
+    }
+
+    window._tab = function(t) { activeTab = t; render(); };
+    window.submitPrayer = function() {
+        var category = document.getElementById('prayerCategory').value;
+        var text = document.getElementById('prayerText').value.trim();
+        var urgency = document.getElementById('prayerUrgency').value;
+        var visibility = document.getElementById('prayerVisibility').value;
+        if (!category || !text) { showToast('Please fill in all fields.', 'error'); return; }
+        API.prayer.create({ category: category, description: text, text: text, urgency: urgency, visibility: visibility, title: category + ' Prayer Request' }).then(function() {
+            closeModal('newPrayerModal');
+            showToast('Prayer request submitted!', 'success');
+            loadPrayers();
+        }).catch(function() { showToast('Failed to submit', 'error'); });
+    };
+
+    function loadPrayers() {
+        API.prayer.getAll({ memberId: user.memberId || user.id }).then(function(r) {
+            allPrayers = (r && r.data) ? (Array.isArray(r.data) ? r.data : r.data.prayers || []) : [];
+            render();
+        }).catch(function() { allPrayers = []; render(); });
+    }
+    render();
+    loadPrayers();
+    </script>
+</body>
+</html>

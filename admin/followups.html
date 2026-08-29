@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Follow-ups - GMA City Complex Admin</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <div id="app"></div>
+    <script src="../js/app.js"></script>
+    <script src="../js/components.js"></script>
+    <script src="../js/layouts.js"></script>
+    <script src="../js/api.js"></script>
+    <script>
+    if (!requireAuth('admin')) throw new Error('Not authorized');
+    var allFollowups = [];
+    var activeTab = 'all';
+
+    function getTypeIcon(type) { if (type === 'call') return '\uD83D\uDCDE'; if (type === 'visit') return '\uD83C\uDFE0'; if (type === 'session') return '\uD83D\uDCCB'; return '\uD83D\uDCC4'; }
+    function getTypeLabel(type) { if (type === 'call') return 'Phone Call'; if (type === 'visit') return 'Home Visit'; if (type === 'session') return 'Session'; return escapeHtml(type || 'Follow-up'); }
+    function getFollowupStatus(status) {
+        if (status === 'due_today' || status === 'scheduled') return '<span class="badge badge-warning">Scheduled</span>';
+        if (status === 'overdue') return '<span class="badge badge-danger">Overdue</span>';
+        if (status === 'completed' || status === 'done') return '<span class="badge badge-success">Completed</span>';
+        if (status === 'cancelled') return '<span class="badge badge-danger">Cancelled</span>';
+        return '<span class="badge badge-info">' + escapeHtml(status || 'Pending') + '</span>';
+    }
+
+    function render() {
+        var filtered = allFollowups.filter(function(f) { return activeTab === 'all' || f.status === activeTab; });
+        var overdue = allFollowups.filter(function(f) { return f.status === 'overdue'; }).length;
+        var completed = allFollowups.filter(function(f) { return f.status === 'completed' || f.status === 'done'; }).length;
+        var content = '<div class="content-header"><div><h1 class="page-title">Follow-ups</h1><p class="page-description">Track pastoral follow-up tasks.</p></div></div>';
+        content += '<div class="stats-grid"><div class="stat-card"><div class="stat-icon">\uD83D\uDD04</div><div class="stat-info"><span>Total</span><strong>' + allFollowups.length + '</strong></div></div>' +
+            '<div class="stat-card"><div class="stat-icon">\u26A0\uFE0F</div><div class="stat-info"><span>Overdue</span><strong>' + overdue + '</strong></div></div>' +
+            '<div class="stat-card"><div class="stat-icon">\u2705</div><div class="stat-info"><span>Completed</span><strong>' + completed + '</strong></div></div></div>';
+        content += '<div class="tabs"><button class="tab ' + (activeTab === 'all' ? 'active' : '') + '" onclick="window._tab(\'all\')">All</button>' +
+            '<button class="tab ' + (activeTab === 'overdue' ? 'active' : '') + '" onclick="window._tab(\'overdue\')">Overdue</button>' +
+            '<button class="tab ' + (activeTab === 'completed' ? 'active' : '') + '" onclick="window._tab(\'completed\')">Completed</button></div>';
+        content += '<div id="followupsList" style="margin-top:16px">';
+        if (filtered.length === 0) content += '<div class="empty-state"><h3>No Follow-ups</h3><p>No follow-ups match this filter.</p></div>';
+        else filtered.forEach(function(f) {
+            var name = f.memberName || f.member_name || 'Member';
+            var counselor = f.counselor || f.assignedTo || f.staffName || 'Unassigned';
+            var dueDate = f.dueDate || f.due_date || f.date || '';
+            content += '<div class="card" style="margin-bottom:12px"><div class="card-body" style="padding:16px 20px">' +
+                '<div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:10px"><div style="display:flex;align-items:center;gap:10px"><div style="width:40px;height:40px;border-radius:50%;background:var(--royal-pale);display:flex;align-items:center;justify-content:center;font-size:1.2rem">' + getTypeIcon(f.type) + '</div><div><strong>' + escapeHtml(name) + '</strong><div class="text-xs text-muted">' + getTypeLabel(f.type) + '</div></div></div>' + getFollowupStatus(f.status) + '</div>' +
+                '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:12px;padding:10px 0;border-top:1px solid var(--gray-100);border-bottom:1px solid var(--gray-100)">' +
+                '<div><span class="text-xs text-muted">Counselor</span><div class="text-sm" style="font-weight:600">' + escapeHtml(counselor) + '</div></div>' +
+                '<div><span class="text-xs text-muted">Due Date</span><div class="text-sm" style="font-weight:600">' + escapeHtml(dueDate) + '</div></div>' +
+                '<div><span class="text-xs text-muted">Type</span><div class="text-sm" style="font-weight:600">' + getTypeLabel(f.type) + '</div></div></div>' +
+                (f.notes ? '<div style="padding:10px 12px;background:var(--gray-50);border-radius:var(--radius)"><span class="text-xs text-muted">Notes:</span><p class="text-sm" style="margin:2px 0 0">' + escapeHtml(f.notes) + '</p></div>' : '') +
+                (f.status !== 'completed' && f.status !== 'done' ? '<div style="margin-top:12px;display:flex;gap:8px"><button class="btn btn-primary btn-sm" onclick="completeFollowup(' + f.id + ')">Mark Complete</button></div>' : '') +
+                '</div></div>';
+        });
+        content += '</div>';
+        document.getElementById('app').innerHTML = renderAdminLayout('followups', content);
+        document.getElementById('sidebarToggle').addEventListener('click', function() { document.getElementById('sidebar').classList.toggle('open'); });
+    }
+
+    window._tab = function(t) { activeTab = t; render(); };
+    window.completeFollowup = function(id) {
+        API.followups.complete(id).then(function() {
+            var f = allFollowups.find(function(f) { return f.id === id; });
+            if (f) f.status = 'completed';
+            showToast('Follow-up marked as complete', 'success');
+            render();
+        }).catch(function() { showToast('Failed to update', 'error'); });
+    };
+    render();
+    API.followups.getAll({}).then(function(r) {
+        allFollowups = (r && r.data) ? (Array.isArray(r.data) ? r.data : r.data.followups || []) : [];
+        render();
+    }).catch(function() { allFollowups = []; render(); });
+    </script>
+</body>
+</html>

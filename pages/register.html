@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register - GMA City Complex</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <div class="auth-page">
+        <div class="auth-card">
+            <a href="/index.html" class="logo">
+                <span class="logo-badge">GMA</span>
+                <span class="logo-text">City Complex</span>
+            </a>
+            <h2>Create Account</h2>
+            <p class="auth-subtitle">Join our community</p>
+            <form id="registerForm">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="firstName">First Name</label>
+                        <input type="text" id="firstName" class="form-control" placeholder="First name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="lastName">Last Name</label>
+                        <input type="text" id="lastName" class="form-control" placeholder="Last name" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="email">Email Address</label>
+                    <input type="email" id="email" class="form-control" placeholder="you@example.com" required>
+                </div>
+                <div class="form-group">
+                    <label for="phone">Phone Number</label>
+                    <input type="tel" id="phone" class="form-control" placeholder="+234 800 000 0000">
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" class="form-control" placeholder="At least 8 characters" required minlength="8">
+                </div>
+                <div class="form-group">
+                    <label for="confirmPassword">Confirm Password</label>
+                    <input type="password" id="confirmPassword" class="form-control" placeholder="Re-enter password" required minlength="8">
+                </div>
+                <div class="form-group">
+                    <label style="display:flex;align-items:flex-start;gap:8px;font-size:0.85rem;color:var(--gray-600);cursor:pointer">
+                        <input type="checkbox" id="agree" style="margin-top:3px" required>
+                        I agree to the <a href="/pages/faq.html" style="color:var(--primary)">Terms of Service</a>&nbsp;and&nbsp;<a href="/pages/faq.html" style="color:var(--primary)">Privacy Policy</a>
+                    </label>
+                </div>
+                <button type="submit" class="btn btn-primary btn-block btn-lg" id="registerBtn">Create Account</button>
+            </form>
+            <div id="registerMessage" class="mt-2 text-center" style="display:none"></div>
+            <div class="auth-divider">or</div>
+            <p class="auth-link">Already have an account? <a href="login.html">Sign in here</a></p>
+            <p class="auth-link" style="margin-top:8px;font-size:0.8rem"><a href="/index.html">&larr; Back to website</a></p>
+        </div>
+    </div>
+    <script src="../js/app.js"></script>
+    <script src="../js/api.js"></script>
+    <script>
+    if (isLoggedIn()) {
+        var role = getRole();
+        if (role === 'member') window.location.href = '/member/dashboard.html';
+        else window.location.href = '/admin/dashboard.html';
+    }
+    document.getElementById('registerForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        var msgEl = document.getElementById('registerMessage');
+        var btn = document.getElementById('registerBtn');
+        var firstName = document.getElementById('firstName').value.trim();
+        var lastName = document.getElementById('lastName').value.trim();
+        var email = document.getElementById('email').value.trim();
+        var phone = document.getElementById('phone').value.trim();
+        var password = document.getElementById('password').value;
+        var confirmPassword = document.getElementById('confirmPassword').value;
+        msgEl.style.display = 'none';
+        if (password !== confirmPassword) {
+            msgEl.textContent = 'Passwords do not match.';
+            msgEl.className = 'form-error mt-2 text-center';
+            msgEl.style.display = 'block';
+            return;
+        }
+        btn.textContent = 'Creating account...';
+        btn.disabled = true;
+        API.auth.register({
+            email: email,
+            password: password,
+            firstName: firstName,
+            lastName: lastName,
+            phone: phone
+        }).then(function(result) {
+            setToken(result.data.token);
+            setUser(result.data.user);
+            window.location.href = '/member/dashboard.html';
+        }).catch(function(err) {
+            msgEl.textContent = err.message || 'Registration failed. Please try again.';
+            msgEl.className = 'form-error mt-2 text-center';
+            msgEl.style.display = 'block';
+            btn.textContent = 'Create Account';
+            btn.disabled = false;
+        });
+    });
+    </script>
+</body>
+</html>

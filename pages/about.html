@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>About Us - GMA City Complex</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <div id="navContainer"></div>
+    <div class="page-header">
+        <div class="container">
+            <h1>About Us</h1>
+            <p>Discover who we are and what drives our mission.</p>
+            <div class="breadcrumb"><a href="/index.html">Home</a><span>/</span><span>About Us</span></div>
+        </div>
+    </div>
+    <section class="section">
+        <div class="container">
+            <div style="max-width:800px;margin:0 auto">
+                <h2 style="margin-bottom:16px">Our Story</h2>
+                <p style="color:var(--gray-600);line-height:1.8;margin-bottom:20px">GMA City Complex is a faith-based community dedicated to worship, counselling, healing and prayer. We believe that every person deserves access to spiritual guidance, emotional healing, and a supportive community that walks with them through life's challenges.</p>
+                <p style="color:var(--gray-600);line-height:1.8;margin-bottom:20px">Our ministry is built on the foundation of God's Word, and we are committed to serving our members and community with love, compassion, and excellence. Through our various programs and services, we aim to restore hope, strengthen families, and transform lives.</p>
+            </div>
+        </div>
+    </section>
+    <section class="section section-alt">
+        <div class="container">
+            <div class="about-grid">
+                <div class="about-card">
+                    <div class="card-icon">&#9997;</div>
+                    <h3>Our Mission</h3>
+                    <p>To reach out with love, strengthen families and walk with every believer on their spiritual journey.</p>
+                </div>
+                <div class="about-card">
+                    <div class="card-icon">&#10010;</div>
+                    <h3>Our Vision</h3>
+                    <p>To build a vibrant community where healing, prayer and godly counsel meet real everyday needs.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+    <section class="section">
+        <div class="container">
+            <h2 class="section-title">Our Core Values</h2>
+            <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 24px; margin-top: 20px">
+                <div class="card card-body text-center"><h4 style="margin-bottom:8px">🔥 Faith</h4><p class="text-muted text-sm">Rooted in the Word of God and committed to living by faith.</p></div>
+                <div class="card card-body text-center"><h4 style="margin-bottom:8px">❤️ Love</h4><p class="text-muted text-sm">Showing genuine care and compassion to everyone.</p></div>
+                <div class="card card-body text-center"><h4 style="margin-bottom:8px">🛡️ Confidentiality</h4><p class="text-muted text-sm">Protecting the privacy and trust of our members.</p></div>
+                <div class="card card-body text-center"><h4 style="margin-bottom:8px">👥 Community</h4><p class="text-muted text-sm">Building meaningful relationships and supporting one another.</p></div>
+                <div class="card card-body text-center"><h4 style="margin-bottom:8px">⭐ Excellence</h4><p class="text-muted text-sm">Serving with integrity and the highest standards.</p></div>
+                <div class="card card-body text-center"><h4 style="margin-bottom:8px">🌟 Service</h4><p class="text-muted text-sm">Dedicated to serving God and our community.</p></div>
+            </div>
+        </div>
+    </section>
+    <section class="section section-dark">
+        <div class="container text-center">
+            <h2 class="section-title light">Meet Our Pastors</h2>
+            <p class="section-subtitle light">Dedicated leaders serving God and the community.</p>
+            <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 24px" id="pastorsGrid"></div>
+        </div>
+    </section>
+    <div id="footerContainer"></div>
+    <script src="../js/app.js"></script>
+    <script src="../js/components.js"></script>
+    <script src="../js/api.js"></script>
+    <script>
+    document.getElementById('navContainer').innerHTML = renderPublicNav('about');
+    loadPageSettings().then(function() { document.getElementById('footerContainer').innerHTML = renderFooter(); });
+    setupNavigation();
+    API.staff.getAll({}).then(function(r) {
+        var staff = (r && r.data) ? (Array.isArray(r.data) ? r.data : r.data.staff || []) : [];
+        if (staff.length === 0) {
+            staff = [
+                { name: 'Pastor John Adeyemi', position: 'Senior Pastor', department: 'Leadership', specialization: 'Visionary Leadership & Preaching', bio: '' },
+                { name: 'Pastor Grace Okonkwo', position: 'Associate Pastor', department: 'Counseling', specialization: 'Marriage & Family Counseling', bio: '' },
+                { name: 'Pastor David Akinwale', position: 'Healing Minister', department: 'Healing', specialization: 'Spiritual Healing & Deliverance', bio: '' }
+            ];
+        }
+        var pGrid = document.getElementById('pastorsGrid');
+        staff.forEach(function(p) {
+            var name = p.name || p.fullName || '';
+            pGrid.innerHTML += '<div class="card card-body text-center" style="background:rgba(255,255,255,0.1);border-color:rgba(255,255,255,0.2)"><div class="avatar avatar-xl" style="margin:0 auto 12px;background:var(--gold);color:var(--royal-deep)">' + getInitials(name) + '</div><h4 style="color:#fff;margin-bottom:4px">' + escapeHtml(name) + '</h4><p style="color:var(--gold);font-size:0.85rem;margin-bottom:8px">' + escapeHtml(p.position || p.role || '') + '</p><p style="color:rgba(255,255,255,0.7);font-size:0.85rem">' + escapeHtml(p.specialization || p.department || '') + '</p></div>';
+        });
+    }).catch(function() { document.getElementById('pastorsGrid').innerHTML = '<p style="color:rgba(255,255,255,0.5)">Loading staff...</p>'; });
+    </script>
+</body>
+</html>

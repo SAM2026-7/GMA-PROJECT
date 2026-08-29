@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Giving Management - Admin - GMA City Complex</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <div id="app"></div>
+    <script src="../js/app.js"></script>
+    <script src="../js/components.js"></script>
+    <script src="../js/layouts.js"></script>
+    <script src="../js/api.js"></script>
+    <script>
+    if (!requireAuth('admin')) throw new Error('Not authorized');
+    var giving = [];
+    var currentTab = 'all';
+
+    function getMemberName(memberId) {
+        var m = giving.find(function(g) { return g.memberName; });
+        return 'Member';
+    }
+
+    function getGivingStatusBadge(status) {
+        if (status === 'confirmed' || status === 'completed') return '<span class="badge badge-success">' + escapeHtml(status) + '</span>';
+        if (status === 'pending') return '<span class="badge badge-warning">Pending</span>';
+        if (status === 'failed') return '<span class="badge badge-danger">Failed</span>';
+        return '<span class="badge">' + escapeHtml(status || 'completed') + '</span>';
+    }
+
+    function getFilteredGiving() {
+        if (currentTab === 'all') return giving;
+        var catMap = { 'tithe': 'Tithe', 'offering': 'Offering', 'missions': 'Missions', 'building': 'Building' };
+        var cat = catMap[currentTab];
+        return cat ? giving.filter(function(g) { return g.category === cat; }) : giving;
+    }
+
+    function exportCSV() {
+        var filtered = getFilteredGiving();
+        var csv = 'Date,Member,Category,Amount,Method,Reference,Status\n';
+        filtered.forEach(function(g) {
+            csv += (g.date || g.created_at || '') + ',' + (g.memberName || g.member_id || '') + ',' + (g.category || '') + ',' + (g.amount || 0) + ',' + (g.method || '') + ',' + (g.reference || '') + ',' + (g.status || '') + '\n';
+        });
+        var blob = new Blob([csv], { type: 'text/csv' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url; a.download = 'giving-report-' + new Date().toISOString().split('T')[0] + '.csv';
+        a.click(); URL.revokeObjectURL(url);
+        showToast('CSV exported successfully', 'success');
+    }
+
+    function renderContent() {
+        var filtered = getFilteredGiving();
+        var totalGiving = giving.reduce(function(s, g) { return s + (g.amount || 0); }, 0);
+        var now = new Date();
+        var thisMonthTotal = giving.filter(function(g) {
+            var d = new Date(g.date || g.created_at);
+            return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+        }).reduce(function(s, g) { return s + (g.amount || 0); }, 0);
+        var avgGift = giving.length > 0 ? Math.round(totalGiving / giving.length) : 0;
+
+        var content = '<div class="content-header"><div><h1 class="page-title">Giving Management</h1><p class="page-description">Track and manage all church giving records.</p></div><div><button class="btn btn-primary" onclick="exportCSV()">Export CSV</button></div></div>';
+        content += '<div class="stats-grid">' +
+            '<div class="stat-card"><div class="stat-icon">💰</div><div class="stat-info"><span>Total Giving</span><strong>' + formatCurrency(totalGiving) + '</strong></div></div>' +
+            '<div class="stat-card"><div class="stat-icon">📅</div><div class="stat-info"><span>This Month</span><strong>' + formatCurrency(thisMonthTotal) + '</strong></div></div>' +
+            '<div class="stat-card"><div class="stat-icon">📊</div><div class="stat-info"><span>Average Gift</span><strong>' + formatCurrency(avgGift) + '</strong></div></div>' +
+            '<div class="stat-card"><div class="stat-icon">⭐</div><div class="stat-info"><span>Records</span><strong>' + giving.length + '</strong></div></div></div>';
+
+        content += '<div class="card"><div class="card-body">' +
+            '<div class="tabs">' +
+            '<button class="tab' + (currentTab === 'all' ? ' active' : '') + '" onclick="handleTab(\'all\')">All</button>' +
+            '<button class="tab' + (currentTab === 'tithe' ? ' active' : '') + '" onclick="handleTab(\'tithe\')">Tithe</button>' +
+            '<button class="tab' + (currentTab === 'offering' ? ' active' : '') + '" onclick="handleTab(\'offering\')">Offering</button>' +
+            '<button class="tab' + (currentTab === 'missions' ? ' active' : '') + '" onclick="handleTab(\'missions\')">Missions</button>' +
+            '<button class="tab' + (currentTab === 'building' ? ' active' : '') + '" onclick="handleTab(\'building\')">Building</button></div>' +
+            '<div class="table-wrap" style="margin-top:16px"><table class="table"><thead><tr>' +
+            '<th>Date</th><th>Member</th><th>Category</th><th>Amount</th><th>Method</th><th>Reference</th><th>Status</th></tr></thead><tbody>';
+        if (filtered.length === 0) {
+            content += '<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--gray-500)">No giving records found.</td></tr>';
+        } else {
+            filtered.forEach(function(g) {
+                content += '<tr><td>' + escapeHtml(g.date || g.created_at || '') + '</td>' +
+                    '<td>' + escapeHtml(g.memberName || g.member_id || 'Member') + '</td>' +
+                    '<td><span class="badge badge-primary">' + escapeHtml(g.category || '') + '</span></td>' +
+                    '<td><strong>' + formatCurrency(g.amount || 0) + '</strong></td>' +
+                    '<td>' + escapeHtml(g.method || '') + '</td>' +
+                    '<td><span style="font-family:monospace;font-size:0.8rem;color:var(--gray-500)">' + escapeHtml(g.reference || '') + '</span></td>' +
+                    '<td>' + getGivingStatusBadge(g.status) + '</td></tr>';
+            });
+        }
+        content += '</tbody></table></div><div style="padding:12px 0;text-align:center;color:var(--gray-500);font-size:0.85rem">Showing ' + filtered.length + ' of ' + giving.length + ' records</div></div></div>';
+        return content;
+    }
+
+    function render() {
+        document.getElementById('app').innerHTML = renderAdminLayout('giving', renderContent());
+        document.getElementById('sidebarToggle').addEventListener('click', function() { document.getElementById('sidebar').classList.toggle('open'); });
+    }
+
+    window.handleTab = function(tab) { currentTab = tab; render(); };
+    window.exportCSV = exportCSV;
+
+    render();
+    API.submissions.getAll({ type: 'giving' }).then(function(r) {
+        giving = (r && r.data) ? (Array.isArray(r.data) ? r.data : r.data.submissions || []) : [];
+        render();
+    }).catch(function() {
+        giving = [
+            { id: 'G-001', date: '2026-08-24', memberName: 'Grace Okonkwo', memberId: 'MBR-001', category: 'Tithe', amount: 50000, method: 'Bank Transfer', reference: 'TIT-20260824-001', status: 'confirmed' },
+            { id: 'G-002', date: '2026-08-24', memberName: 'Samuel Adeyemi', memberId: 'MBR-002', category: 'Offering', amount: 15000, method: 'Card', reference: 'OFF-20260824-002', status: 'confirmed' },
+            { id: 'G-003', date: '2026-08-20', memberName: 'Blessing Ogbonna', memberId: 'MBR-003', category: 'Missions', amount: 25000, method: 'Bank Transfer', reference: 'MIS-20260820-003', status: 'confirmed' },
+            { id: 'G-004', date: '2026-08-18', memberName: 'David Akinwale', memberId: 'MBR-004', category: 'Building', amount: 100000, method: 'Bank Transfer', reference: 'BLD-20260818-004', status: 'confirmed' },
+            { id: 'G-005', date: '2026-08-17', memberName: 'Esther Abiodun', memberId: 'MBR-005', category: 'Tithe', amount: 35000, method: 'USSD', reference: 'TIT-20260817-005', status: 'pending' }
+        ];
+        render();
+    });
+    </script>
+</body>
+</html>

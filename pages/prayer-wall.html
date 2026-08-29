@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prayer Wall - GMA City Complex</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <div id="navContainer"></div>
+    <div class="page-header">
+        <div class="container">
+            <h1>Prayer Wall</h1>
+            <p>Together we stand in prayer. Lift up a request or pray for someone in need.</p>
+            <div class="breadcrumb"><a href="/index.html">Home</a><span>/</span><span>Prayer Wall</span></div>
+        </div>
+    </div>
+    <section class="section">
+        <div class="container">
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px;margin-bottom:24px">
+                <div class="tabs" id="filterTabs">
+                    <button class="tab active" data-filter="all">All</button>
+                    <button class="tab" data-filter="Family">Family</button>
+                    <button class="tab" data-filter="Career">Career</button>
+                    <button class="tab" data-filter="Health">Health</button>
+                    <button class="tab" data-filter="Financial">Financial</button>
+                    <button class="tab" data-filter="Spiritual Growth">Spiritual Growth</button>
+                </div>
+                <a href="prayer-request.html" class="btn btn-primary">Submit Prayer Request</a>
+            </div>
+            <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:24px" id="prayerGrid">
+                <div class="text-center text-muted text-sm" style="grid-column:1/-1;padding:40px">Loading prayer requests...</div>
+            </div>
+            <div class="empty-state" id="emptyState" style="display:none">
+                <div class="empty-icon">&#128591;</div>
+                <h3>No Prayer Requests Found</h3>
+                <p>There are no public prayer requests in this category yet.</p>
+            </div>
+        </div>
+    </section>
+    <div id="footerContainer"></div>
+    <script src="../js/app.js"></script>
+    <script src="../js/components.js"></script>
+    <script src="../js/api.js"></script>
+    <script>
+    document.getElementById('navContainer').innerHTML = renderPublicNav('');
+    loadSiteSettings().then(function() { document.getElementById('footerContainer').innerHTML = renderFooter(); });
+    setupNavigation();
+
+    var currentFilter = 'all';
+    var allPrayers = [];
+
+    function renderPrayerCards(filter) {
+        var grid = document.getElementById('prayerGrid');
+        var empty = document.getElementById('emptyState');
+        var requests = allPrayers.filter(function(r) {
+            var vis = (r.visibility || 'public').toLowerCase();
+            if (vis !== 'public') return false;
+            return filter === 'all' || (r.category || '') === filter;
+        });
+        if (requests.length === 0) { grid.innerHTML = ''; grid.style.display = 'none'; empty.style.display = 'block'; return; }
+        grid.style.display = ''; empty.style.display = 'none';
+        grid.innerHTML = '';
+        requests.forEach(function(req) {
+            var prayedCount = req.prayedCount || req.prayed_count || req.prayerCount || 0;
+            grid.innerHTML += '<div class="prayer-card">' +
+                '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">' +
+                    '<span class="badge badge-info">' + escapeHtml(req.category || 'General') + '</span>' +
+                    getStatusBadge(req.status || 'received') +
+                '</div>' +
+                '<p class="prayer-text">&ldquo;' + escapeHtml(req.description || req.text || req.request || '') + '&rdquo;</p>' +
+                '<div class="prayer-meta">' +
+                    '<span>' + escapeHtml(req.memberName || req.member_name || 'Anonymous') + '</span>' +
+                    '<span>' + escapeHtml(timeAgo(req.createdAt || req.created_at || req.time)) + '</span>' +
+                '</div>' +
+                '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;padding-top:14px;border-top:1px solid var(--gray-200)">' +
+                    '<span style="font-size:0.9rem;color:var(--gray-600)">' + prayedCount + ' people prayed</span>' +
+                    '<button class="btn btn-primary btn-sm pray-btn" onclick="handlePray(this,' + req.id + ',' + prayedCount + ')">I Prayed</button>' +
+                '</div></div>';
+        });
+    }
+
+    function handlePray(btn, id, currentCount) {
+        API.prayer.pray(id).then(function() {
+            btn.textContent = 'Prayed';
+            btn.disabled = true;
+            btn.classList.remove('btn-primary');
+            btn.classList.add('btn-secondary');
+            var countEl = btn.parentElement.querySelector('span');
+            if (countEl) countEl.textContent = (currentCount + 1) + ' people prayed';
+            showToast('Thank you for praying!', 'success');
+        }).catch(function() {
+            btn.textContent = 'Prayed';
+            btn.disabled = true;
+            showToast('Thank you for praying!', 'success');
+        });
+    }
+
+    document.getElementById('filterTabs').addEventListener('click', function(e) {
+        var btn = e.target.closest('.tab');
+        if (!btn) return;
+        document.querySelectorAll('#filterTabs .tab').forEach(function(t) { t.classList.remove('active'); });
+        btn.classList.add('active');
+        currentFilter = btn.getAttribute('data-filter');
+        renderPrayerCards(currentFilter);
+    });
+
+    API.prayer.wall(1, 50).then(function(r) {
+        allPrayers = (r && r.data) ? (Array.isArray(r.data) ? r.data : r.data.prayers || r.data.requests || []) : [];
+        renderPrayerCards('all');
+    }).catch(function() {
+        API.prayer.getAll({}).then(function(r) {
+            allPrayers = (r && r.data) ? (Array.isArray(r.data) ? r.data : r.data.prayers || []) : [];
+            renderPrayerCards('all');
+        }).catch(function() { allPrayers = []; renderPrayerCards('all'); });
+    });
+    </script>
+</body>
+</html>

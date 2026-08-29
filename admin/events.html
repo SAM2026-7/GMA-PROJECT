@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Events - Admin - GMA City Complex</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <div id="app"></div>
+    <script src="../js/app.js"></script>
+    <script src="../js/components.js"></script>
+    <script src="../js/layouts.js"></script>
+    <script src="../js/api.js"></script>
+    <script>
+    if (!requireAuth('admin')) throw new Error('Not authorized');
+    var allEvents = [];
+    var editingId = null;
+
+    function getCategoryBadge(cat) {
+        var colors = { service: 'var(--royal-blue)', conference: 'var(--success)', special: 'var(--warning-dark)', seminar: 'var(--info-dark)', outreach: 'var(--gray-600)' };
+        return '<span class="badge" style="background:' + (colors[cat] || 'var(--gray-400)') + ';color:#fff">' + escapeHtml(cat || '') + '</span>';
+    }
+
+    function render() {
+        var content = '<div class="content-header"><div><h1 class="page-title">Events <span class="badge">' + allEvents.length + '</span></h1></div><div><button class="btn btn-primary" onclick="openModal(null)">+ Add Event</button></div></div>';
+        if (allEvents.length === 0) content += '<div class="empty-state"><p>No events found.</p></div>';
+        else {
+            content += '<div class="card"><div class="card-body" style="padding:0"><div class="table-wrap"><table class="table"><thead><tr><th>Title</th><th>Date</th><th>Time</th><th>Location</th><th>Category</th><th>Actions</th></tr></thead><tbody>';
+            allEvents.forEach(function(e) {
+                content += '<tr><td><strong>' + escapeHtml(e.title || '') + '</strong></td><td>' + escapeHtml(e.startDate || e.date || '') + '</td><td>' + escapeHtml(e.startTime || e.time || '') + '</td><td>' + escapeHtml(e.location || '') + '</td><td>' + getCategoryBadge(e.category) + '</td><td><div style="display:flex;gap:4px"><button class="btn btn-sm btn-primary" onclick="openModal(' + e.id + ')">Edit</button><button class="btn btn-sm" style="background:var(--danger-bg);color:var(--danger-dark)" onclick="deleteEvent(' + e.id + ')">Delete</button></div></td></tr>';
+            });
+            content += '</tbody></table></div></div></div>';
+        }
+        content += '<div class="modal-backdrop" id="eventModal"><div class="modal" style="max-width:600px"><div class="modal-header"><h3 id="eventModalTitle">Add Event</h3><button class="modal-close" onclick="closeModal(\'eventModal\')">&times;</button></div><div class="modal-body">' +
+            '<div class="form-group"><label>Title</label><input type="text" id="evtTitle" class="form-control"></div>' +
+            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px"><div class="form-group"><label>Date</label><input type="date" id="evtDate" class="form-control"></div><div class="form-group"><label>Time</label><input type="text" id="evtTime" class="form-control" placeholder="9:00 AM"></div></div>' +
+            '<div class="form-group"><label>Location</label><input type="text" id="evtLocation" class="form-control"></div>' +
+            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px"><div class="form-group"><label>Category</label><select id="evtCategory" class="form-control"><option value="service">Service</option><option value="conference">Conference</option><option value="seminar">Seminar</option><option value="special">Special</option><option value="outreach">Outreach</option></select></div></div>' +
+            '<div class="form-group"><label>Description</label><textarea id="evtDescription" class="form-control" rows="3"></textarea></div>' +
+            '</div><div class="modal-footer"><button class="btn btn-ghost btn-sm" onclick="closeModal(\'eventModal\')">Cancel</button><button class="btn btn-primary btn-sm" onclick="saveEvent()">Save</button></div></div></div>';
+        document.getElementById('app').innerHTML = renderAdminLayout('events', content);
+        document.getElementById('sidebarToggle').addEventListener('click', function() { document.getElementById('sidebar').classList.toggle('open'); });
+    }
+
+    function openModal(id) {
+        editingId = id;
+        if (id) {
+            var e = allEvents.find(function(ev) { return ev.id === id; });
+            document.getElementById('eventModalTitle').textContent = 'Edit Event';
+            document.getElementById('evtTitle').value = e.title || '';
+            document.getElementById('evtDate').value = e.startDate || e.date || '';
+            document.getElementById('evtTime').value = e.startTime || e.time || '';
+            document.getElementById('evtLocation').value = e.location || '';
+            document.getElementById('evtCategory').value = e.category || 'service';
+            document.getElementById('evtDescription').value = e.description || '';
+        } else {
+            document.getElementById('eventModalTitle').textContent = 'Add Event';
+            document.getElementById('evtTitle').value = '';
+            document.getElementById('evtDate').value = '';
+            document.getElementById('evtTime').value = '';
+            document.getElementById('evtLocation').value = '';
+            document.getElementById('evtCategory').value = 'service';
+            document.getElementById('evtDescription').value = '';
+        }
+        showModal('eventModal');
+    }
+
+    function saveEvent() {
+        var data = {
+            title: document.getElementById('evtTitle').value.trim(),
+            startDate: document.getElementById('evtDate').value,
+            date: document.getElementById('evtDate').value,
+            startTime: document.getElementById('evtTime').value.trim(),
+            time: document.getElementById('evtTime').value.trim(),
+            location: document.getElementById('evtLocation').value.trim(),
+            category: document.getElementById('evtCategory').value,
+            description: document.getElementById('evtDescription').value.trim()
+        };
+        if (!data.title || !data.startDate) { showToast('Title and date required', 'error'); return; }
+        var promise = editingId ? API.events.update(editingId, data) : API.events.create(data);
+        promise.then(function() {
+            closeModal('eventModal');
+            showToast(editingId ? 'Event updated' : 'Event created', 'success');
+            logFrontendAction(editingId ? 'update' : 'create', 'event', editingId || 'new', data.title);
+            loadEvents();
+        }).catch(function() { showToast('Failed to save event', 'error'); });
+    }
+
+    function deleteEvent(id) {
+        if (!confirm('Delete this event?')) return;
+        API.events.delete(id).then(function() { showToast('Event deleted', 'success'); logFrontendAction('delete', 'event', id, 'Event deleted'); loadEvents(); }).catch(function() { showToast('Failed', 'error'); });
+    }
+
+    function loadEvents() {
+        API.events.getAll({}).then(function(r) {
+            allEvents = (r && r.data) ? (Array.isArray(r.data) ? r.data : r.data.events || []) : [];
+            render();
+        }).catch(function() { allEvents = []; render(); });
+    }
+    loadEvents();
+    </script>
+</body>
+</html>

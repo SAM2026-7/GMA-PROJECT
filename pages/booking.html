@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Book a Session - GMA City Complex</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <div id="navContainer"></div>
+    <div class="page-header">
+        <div class="container">
+            <h1>Book a Session</h1>
+            <p>Schedule a counseling, healing, or prayer session with our pastoral team.</p>
+            <div class="breadcrumb"><a href="/index.html">Home</a><span>/</span><span>Book a Session</span></div>
+        </div>
+    </div>
+    <section class="section">
+        <div class="container-sm">
+            <form id="bookingForm" class="card card-body" style="max-width:680px;margin:0 auto">
+                <h3 style="margin-bottom:20px;color:var(--royal-deep)">Session Details</h3>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="service">Service Type</label>
+                        <select id="service" class="form-control" required>
+                            <option value="">Select service</option>
+                            <option value="Counseling">Counseling</option>
+                            <option value="Healing">Healing</option>
+                            <option value="Prayer">Prayer</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="sessionType">Session Type</label>
+                        <select id="sessionType" class="form-control" required>
+                            <option value="">Select type</option>
+                            <option value="Marriage Counseling">Marriage Counseling</option>
+                            <option value="Family Counseling">Family Counseling</option>
+                            <option value="Youth Counseling">Youth Counseling</option>
+                            <option value="Pastoral Consultation">Pastoral Consultation</option>
+                            <option value="Healing Session">Healing Session</option>
+                            <option value="Prayer Session">Prayer Session</option>
+                            <option value="Follow-up">Follow-up</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="date">Preferred Date</label>
+                        <input type="date" id="date" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="time">Preferred Time</label>
+                        <select id="time" class="form-control" required>
+                            <option value="">Select time</option>
+                            <option value="08:00">8:00 AM</option>
+                            <option value="09:00">9:00 AM</option>
+                            <option value="10:00">10:00 AM</option>
+                            <option value="11:00">11:00 AM</option>
+                            <option value="12:00">12:00 PM</option>
+                            <option value="14:00">2:00 PM</option>
+                            <option value="15:00">3:00 PM</option>
+                            <option value="16:00">4:00 PM</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="meetingType">Meeting Format</label>
+                    <select id="meetingType" class="form-control" required>
+                        <option value="">Select format</option>
+                        <option value="Physical">In-Person</option>
+                        <option value="Online">Online (Video Call)</option>
+                        <option value="Phone Call">Phone Call</option>
+                    </select>
+                </div>
+                <hr style="margin:16px 0;border:none;border-top:1px solid var(--gray-200)">
+                <h3 style="margin-bottom:16px;color:var(--royal-deep)">Your Information</h3>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="name">Full Name</label>
+                        <input type="text" id="name" class="form-control" placeholder="Your full name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="phone">Phone Number</label>
+                        <input type="tel" id="phone" class="form-control" placeholder="08012345678" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="email">Email Address</label>
+                    <input type="email" id="email" class="form-control" placeholder="you@example.com">
+                </div>
+                <div class="form-group">
+                    <label for="reason">Reason for Booking</label>
+                    <textarea id="reason" class="form-control" rows="4" placeholder="Tell us briefly about your request..." required></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="preferredContact">Preferred Contact Method</label>
+                    <select id="preferredContact" class="form-control">
+                        <option value="phone">Phone Call</option>
+                        <option value="whatsapp">WhatsApp</option>
+                        <option value="email">Email</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary btn-block btn-lg" id="submitBtn">Submit Booking Request</button>
+            </form>
+            <div id="bookingMessage" class="mt-3" style="display:none"></div>
+        </div>
+    </section>
+    <div id="footerContainer"></div>
+    <script src="../js/app.js"></script>
+    <script src="../js/components.js"></script>
+    <script src="../js/api.js"></script>
+    <script>
+    document.getElementById('navContainer').innerHTML = renderPublicNav('');
+    loadSiteSettings().then(function() { document.getElementById('footerContainer').innerHTML = renderFooter(); });
+    setupNavigation();
+    var today = new Date().toISOString().split('T')[0];
+    document.getElementById('date').setAttribute('min', today);
+    var params = new URLSearchParams(window.location.search);
+    if (params.get('service')) document.getElementById('service').value = params.get('service');
+    var user = getUser();
+    if (user) {
+        document.getElementById('name').value = user.name || '';
+        document.getElementById('phone').value = user.phone || '';
+        document.getElementById('email').value = user.email || '';
+    }
+
+    document.getElementById('bookingForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        var btn = document.getElementById('submitBtn');
+        var name = document.getElementById('name').value.trim();
+        var phone = document.getElementById('phone').value.trim();
+        var email = document.getElementById('email').value.trim();
+        var service = document.getElementById('service').value;
+        var sessionType = document.getElementById('sessionType').value;
+        var date = document.getElementById('date').value;
+        var time = document.getElementById('time').value;
+        var meetingType = document.getElementById('meetingType').value;
+        var reason = document.getElementById('reason').value.trim();
+        var preferredContact = document.getElementById('preferredContact').value;
+
+        if (!name || !phone || !service || !sessionType || !date || !time || !meetingType || !reason) {
+            showToast('Please fill in all required fields.', 'error');
+            return;
+        }
+
+        btn.textContent = 'Submitting...';
+        btn.disabled = true;
+
+        API.bookings.create({
+            fullName: name,
+            phone: phone,
+            email: email,
+            serviceType: service,
+            sessionType: sessionType,
+            date: date,
+            time: time,
+            meetingType: meetingType,
+            reason: reason,
+            preferredContact: preferredContact
+        }).then(function(r) {
+            saveLocalSubmission({
+                id: (r && r.data && r.data.id) ? r.data.id : 'GMA-2026-' + Date.now().toString().slice(-5),
+                type: 'Booking',
+                name: name,
+                phone: phone,
+                email: email,
+                serviceType: service,
+                sessionType: sessionType,
+                date: date,
+                time: time,
+                meetingType: meetingType,
+                reason: reason,
+                preferredContact: preferredContact,
+                submittedAt: new Date().toISOString()
+            });
+            var bookingId = (r && r.data && r.data.id) ? r.data.id : 'GMA-2026-' + Date.now().toString().slice(-5);
+            document.getElementById('bookingMessage').style.display = 'block';
+            document.getElementById('bookingMessage').innerHTML = '<div class="alert alert-success" style="max-width:680px;margin:0 auto"><div><strong style="font-size:1.1rem">Booking Received!</strong><br><br>Booking ID: <strong>#' + bookingId + '</strong><br><br>Thank you for your request. Our pastoral care team will contact you within 24 hours to confirm your session.<br><br><a href="/index.html" class="btn btn-primary btn-sm" style="margin-top:12px">Return Home</a></div></div>';
+            document.getElementById('bookingForm').style.display = 'none';
+        }).catch(function(err) {
+            saveLocalSubmission({
+                id: 'LOCAL-' + Date.now().toString().slice(-5),
+                type: 'Booking',
+                name: name,
+                phone: phone,
+                email: email,
+                serviceType: service,
+                sessionType: sessionType,
+                date: date,
+                time: time,
+                meetingType: meetingType,
+                reason: reason,
+                preferredContact: preferredContact,
+                submittedAt: new Date().toISOString()
+            });
+            btn.textContent = 'Submit Booking Request';
+            btn.disabled = false;
+            document.getElementById('bookingMessage').style.display = 'block';
+            document.getElementById('bookingMessage').innerHTML = '<div class="alert alert-warning" style="max-width:680px;margin:0 auto"><div><strong style="font-size:1.1rem">Saved Locally</strong><br><br>We could not reach the server, but your booking request has been saved. Our team will review it shortly.<br><br><small>' + escapeHtml(err.message || 'Unknown error') + '</small></div></div>';
+        });
+    });
+    </script>
+</body>
+</html>

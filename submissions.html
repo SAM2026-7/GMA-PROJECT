@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>All Submissions | GMA City Complex</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div id="navContainer"></div>
+    <div class="page-header">
+        <div class="container">
+            <h1>All User Submissions</h1>
+            <p id="submissionSummary">Loading submissions...</p>
+        </div>
+    </div>
+    <section class="section">
+        <div class="container">
+            <div id="noSubmissions" class="empty-state" hidden>
+                <h3>No bookings submitted yet</h3>
+                <p>Once someone books a visit, it will appear here.</p>
+                <a href="index.html" class="btn btn-primary">Go to Homepage</a>
+            </div>
+            <div id="submissionList" class="submission-list" aria-live="polite"></div>
+            <div style="text-align:center;margin-top:24px">
+                <button class="btn btn-outline-blue" id="clearSubmissions" style="margin-right:8px">Clear All Submissions</button>
+                <a href="index.html" class="btn btn-primary">Return Home</a>
+            </div>
+        </div>
+    </section>
+    <div id="footerContainer"></div>
+    <script src="js/app.js"></script>
+    <script src="js/components.js"></script>
+    <script>
+    document.getElementById('navContainer').innerHTML = renderPublicNav('');
+    loadSiteSettings().then(function() { document.getElementById('footerContainer').innerHTML = renderFooter(); });
+    setupNavigation();
+
+    function getSubmissions() {
+        try { return JSON.parse(localStorage.getItem('gma_submissions') || '[]'); } catch { return []; }
+    }
+    function saveSubmissions(items) { localStorage.setItem('gma_submissions', JSON.stringify(items)); }
+
+    function renderSubmissions() {
+        var items = getSubmissions();
+        var summary = document.getElementById('submissionSummary');
+        var list = document.getElementById('submissionList');
+        var empty = document.getElementById('noSubmissions');
+
+        if (items.length === 0) {
+            summary.textContent = 'No submissions found.';
+            list.innerHTML = '';
+            empty.hidden = false;
+            return;
+        }
+
+        empty.hidden = true;
+        summary.textContent = 'Showing ' + items.length + ' submission' + (items.length > 1 ? 's' : '') + '.';
+
+        var html = '<div class="card" style="overflow:hidden"><div class="table-wrap"><table class="table"><thead><tr><th>ID</th><th>Type</th><th>Name</th><th>Date</th><th>Status</th><th>Submitted</th></tr></thead><tbody>';
+        items.slice().reverse().forEach(function(s) {
+            html += '<tr><td><strong>#' + escapeHtml(String(s.id || '').substring(0, 8)) + '</strong></td>' +
+                '<td>' + escapeHtml(s.type || 'Booking') + '</td>' +
+                '<td>' + escapeHtml(s.name || 'Anonymous') + '</td>' +
+                '<td>' + escapeHtml(s.date || s.preferredDate || '-') + '</td>' +
+                '<td><span class="badge badge-success">Received</span></td>' +
+                '<td>' + escapeHtml(s.submittedAt ? new Date(s.submittedAt).toLocaleString() : '-') + '</td></tr>';
+        });
+        html += '</tbody></table></div></div>';
+        list.innerHTML = html;
+    }
+
+    document.getElementById('clearSubmissions').addEventListener('click', function() {
+        if (confirm('Clear all submissions? This cannot be undone.')) {
+            saveSubmissions([]);
+            renderSubmissions();
+        }
+    });
+
+    renderSubmissions();
+    </script>
+</body>
+</html>

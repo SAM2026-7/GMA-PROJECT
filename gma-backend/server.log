@@ -1,0 +1,27 @@
+Migrations completed successfully
+Users seeded
+Members seeded
+Staff seeded
+Bookings seeded
+Cases seeded
+Sessions seeded
+Prayer requests seeded
+Follow-ups seeded
+Events seeded
+Sermons seeded
+Projects seeded
+Content seeded
+All seed data inserted successfully
+GMA Backend running on http://localhost:3000
+API Docs: http://localhost:3000/api-docs
+Health: http://localhost:3000/health
+[0mGET /health [32m200[0m 4.643 ms - 54[0m
+[0mPOST /api/auth/login [32m200[0m 89.103 ms - 381[0m
+[0mGET /api/content [32m200[0m 22.372 ms - 3933[0m
+[0mPOST /api/auth/login [32m200[0m 77.864 ms - 353[0m
+[0mPOST /api/submissions [32m201[0m 22.106 ms - 291[0m
+[0mPOST /api/auth/login [32m200[0m 109.772 ms - 381[0m
+[0mGET /api/events/upcoming [31m500[0m 1.903 ms - 43[0m
+[0mGET /api/prayer/wall [32m200[0m 5.805 ms - 1425[0m
+[0mPOST /api/auth/login [32m200[0m 71.202 ms - 397[0m
+[0mGET /api/sermons [31m500[0m 8.826 ms - 35[0m

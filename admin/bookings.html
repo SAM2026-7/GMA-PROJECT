@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bookings - Admin - GMA City Complex</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <div id="app"><div style="padding:40px;text-align:center;color:var(--gray-500)">Loading admin panel...</div></div>
+    <script src="../js/app.js"></script>
+    <script src="../js/components.js"></script>
+    <script src="../js/layouts.js"></script>
+    <script src="../js/api.js"></script>
+    <script>
+    if (!requireAuth('admin')) throw new Error('Not authorized');
+    var allBookings = [];
+    var activeTab = 'All';
+    var statusTabs = ['All', 'New', 'Pending', 'Confirmed', 'Completed', 'Cancelled'];
+
+    function capitalizeStatus(s) { return (s || '').charAt(0).toUpperCase() + (s || '').slice(1); }
+    function getFilteredBookings() { if (activeTab === 'All') return allBookings; return allBookings.filter(function(b) { return capitalizeStatus(b.status) === activeTab; }); }
+    function getCountByStatus(s) { return allBookings.filter(function(b) { return b.status === s; }).length; }
+
+    function renderBookingCard(b) {
+        var name = b.memberName || b.member_name || 'Member';
+        var service = b.serviceType || b.service || '';
+        var sessionType = b.sessionType || b.type || '';
+        var date = b.date || b.bookingDate || '';
+        var time = b.time || b.bookingTime || '';
+        var meetingType = b.meetingType || '';
+        var reason = b.reason || '';
+        var assignedTo = b.assignedTo || b.assigned_to || '';
+        var email = b.visitor_email || b.email || '';
+        return '<div class="card" style="margin-bottom:16px"><div class="card-body">' +
+            '<div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:12px"><div><strong>Booking #' + escapeHtml(String(b.id).substring(0, 8)) + '</strong></div>' + getStatusBadge(b.status) + '</div>' +
+            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 24px;margin-bottom:12px">' +
+            '<p><strong>Member:</strong> ' + escapeHtml(name) + '</p>' +
+            '<p><strong>Service:</strong> ' + escapeHtml(service) + '</p>' +
+            '<p><strong>Type:</strong> ' + escapeHtml(sessionType) + '</p>' +
+            '<p><strong>Date:</strong> ' + escapeHtml(date) + '</p>' +
+            '<p><strong>Time:</strong> ' + escapeHtml(time) + '</p>' +
+            '<p><strong>Meeting:</strong> ' + escapeHtml(meetingType) + '</p>' +
+            (reason ? '<p style="grid-column:1/-1"><strong>Reason:</strong> ' + escapeHtml(reason) + '</p>' : '') +
+            '</div>' +
+            '<div style="border-top:1px solid var(--gray-100);padding-top:12px;display:flex;gap:8px;flex-wrap:wrap">' +
+            '<button class="btn btn-sm btn-primary" onclick="updateBookingStatus(' + b.id + ',\'confirmed\')">Confirm</button>' +
+            '<button class="btn btn-sm" style="background:var(--gray-100);color:var(--gray-700)" onclick="updateBookingStatus(' + b.id + ',\'completed\')">Complete</button>' +
+            '<button class="btn btn-sm" style="background:var(--danger);color:#fff" onclick="updateBookingStatus(' + b.id + ',\'cancelled\')">Cancel</button>' +
+            (email ? '<button class="btn btn-sm btn-primary" style="background:var(--royal-blue);color:#fff" onclick="openEmailModal(' + b.id + ',\'' + escapeHtml(email) + '\',\'' + escapeHtml(name) + '\')">Reply via Email</button>' : '') +
+            '</div></div></div>';
+    }
+
+    function render() {
+        var filtered = getFilteredBookings();
+        var total = allBookings.length;
+        var content = '<div class="content-header"><div><h1 class="page-title">Bookings <span class="badge">' + total + '</span></h1></div><div><button class="btn btn-primary btn-sm" onclick="exportCSV()">Export CSV</button></div></div>';
+        content += '<div class="stats-grid"><div class="stat-card"><div class="stat-info"><span>Total</span><strong>' + total + '</strong></div></div><div class="stat-card"><div class="stat-info"><span>Pending</span><strong>' + (getCountByStatus('new') + getCountByStatus('pending')) + '</strong></div></div><div class="stat-card"><div class="stat-info"><span>Confirmed</span><strong>' + getCountByStatus('confirmed') + '</strong></div></div><div class="stat-card"><div class="stat-info"><span>Completed</span><strong>' + getCountByStatus('completed') + '</strong></div></div></div>';
+        content += '<div class="tabs">';
+        statusTabs.forEach(function(tab) { content += '<button class="tab ' + (activeTab === tab ? 'active' : '') + '" onclick="window._filterTab(\'' + tab + '\')">' + tab + '</button>'; });
+        content += '</div><div style="margin-top:16px">';
+        if (filtered.length === 0) content += '<div class="empty-state"><p>No bookings found.</p></div>';
+        else filtered.forEach(function(b) { content += renderBookingCard(b); });
+        content += '</div>';
+        document.getElementById('app').innerHTML = renderAdminLayout('bookings', content);
+        document.getElementById('sidebarToggle').addEventListener('click', function() { document.getElementById('sidebar').classList.toggle('open'); });
+    }
+
+    window._filterTab = function(tab) { activeTab = tab; render(); };
+    window.updateBookingStatus = function(id, status) {
+        API.bookings.update(id, { status: status }).then(function() {
+            var b = allBookings.find(function(b) { return b.id === id; });
+            if (b) b.status = status;
+            showToast('Booking updated to ' + capitalizeStatus(status), 'success');
+            logFrontendAction('status_change', 'booking', id, 'Booking status changed to ' + status);
+            render();
+        }).catch(function() { showToast('Failed to update booking', 'error'); });
+    };
+    window.exportCSV = function() {
+        var rows = [['ID', 'Member', 'Service', 'Date', 'Time', 'Status']];
+        allBookings.forEach(function(b) { rows.push([b.id, b.memberName || '', b.serviceType || b.service || '', b.date || b.bookingDate || '', b.time || '', b.status || '']); });
+        var csv = rows.map(function(r) { return r.map(function(c) { return '"' + String(c).replace(/"/g, '""') + '"'; }).join(','); }).join('\n');
+        var blob = new Blob([csv], { type: 'text/csv' }); var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'bookings.csv'; a.click();
+    };
+
+    render();
+    API.bookings.getAll({}).then(function(r) {
+        allBookings = (r && r.data) ? (Array.isArray(r.data) ? r.data : r.data.bookings || []) : [];
+        render();
+    }).catch(function() { allBookings = []; render(); });
+
+    function openEmailModal(bookingId, recipientEmail, recipientName) {
+        var modal = document.createElement('div');
+        modal.className = 'modal-backdrop active';
+        modal.id = 'emailModal';
+        modal.innerHTML = '<div class="modal" style="max-width:560px"><div class="modal-header"><h3>Send Email Response</h3><button class="modal-close" onclick="closeEmailModal()">&times;</button></div><div class="modal-body"><form id="emailForm"><div class="form-group"><label>To</label><input type="email" id="emailTo" class="form-control" value="' + escapeHtml(recipientEmail || '') + '" readonly></div><div class="form-group"><label>Name</label><input type="text" id="emailName" class="form-control" value="' + escapeHtml(recipientName || '') + '" readonly></div><div class="form-group"><label>Subject</label><input type="text" id="emailSubject" class="form-control" value="Response regarding your booking" required></div><div class="form-group"><label>Message</label><textarea id="emailMessage" class="form-control" rows="5" required placeholder="Type your response here..."></textarea></div><div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px"><button type="button" class="btn" style="background:var(--gray-100);color:var(--gray-700)" onclick="closeEmailModal()">Cancel</button><button type="submit" class="btn btn-primary">Send Email</button></div></form></div></div>';
+        document.body.appendChild(modal);
+        document.getElementById('emailForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            var btn = modal.querySelector('button[type="submit"]');
+            btn.textContent = 'Sending...';
+            btn.disabled = true;
+            API.notifications.sendEmail({
+                to: document.getElementById('emailTo').value,
+                name: document.getElementById('emailName').value,
+                subject: document.getElementById('emailSubject').value,
+                message: document.getElementById('emailMessage').value,
+                type: 'booking',
+                referenceId: 'Booking #' + bookingId
+            }).then(function() {
+                showToast('Email sent successfully', 'success');
+                closeEmailModal();
+            }).catch(function() {
+                showToast('Failed to send email', 'error');
+                btn.textContent = 'Send Email';
+                btn.disabled = false;
+            });
+        });
+    }
+
+    window.closeEmailModal = function() {
+        var modal = document.getElementById('emailModal');
+        if (modal) modal.remove();
+    };
+
+    window.sendAutoResponseToBooking = function(bookingId, recipientEmail, recipientName) {
+        if (!recipientEmail) {
+            showToast('No email address available for this booking', 'error');
+            return;
+        }
+        if (confirm('Send auto-response email to ' + recipientEmail + '?')) {
+            API.notifications.sendEmail({
+                to: recipientEmail,
+                name: recipientName || 'Visitor',
+                type: 'booking',
+                referenceId: 'Booking #' + bookingId,
+                sendAutoResponse: true
+            }).then(function() {
+                showToast('Auto-response sent', 'success');
+            }).catch(function() {
+                showToast('Failed to send auto-response', 'error');
+            });
+        }
+    };
+    </script>
+</body>
+</html>

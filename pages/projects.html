@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Church Projects - GMA City Complex</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <div id="navContainer"></div>
+    <div class="page-header">
+        <div class="container">
+            <h1>Church Projects</h1>
+            <p>Partner with us to build something extraordinary for God's kingdom.</p>
+            <div class="breadcrumb"><a href="/index.html">Home</a><span>/</span><span>Church Projects</span></div>
+        </div>
+    </div>
+    <section class="section">
+        <div class="container">
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:28px" id="projectsGrid"></div>
+            <div class="empty-state" id="emptyState" style="display:none">
+                <div class="empty-icon">📍</div>
+                <h3>No Projects Found</h3>
+                <p>There are no active projects at this time.</p>
+            </div>
+        </div>
+    </section>
+    <div id="footerContainer"></div>
+    <script src="../js/app.js"></script>
+    <script src="../js/components.js"></script>
+    <script src="../js/api.js"></script>
+    <script>
+    document.getElementById('navContainer').innerHTML = renderPublicNav('');
+    document.getElementById('footerContainer').innerHTML = renderFooter();
+    setupNavigation();
+
+    function renderProjects(projects) {
+        var grid = document.getElementById('projectsGrid');
+        var empty = document.getElementById('emptyState');
+        if (!projects || projects.length === 0) { grid.style.display = 'none'; empty.style.display = 'block'; return; }
+        grid.style.display = ''; empty.style.display = 'none';
+        grid.innerHTML = '';
+        projects.forEach(function(p) {
+            var raised = p.raised || p.amount_raised || 0;
+            var target = p.target || p.target_amount || 1;
+            var pct = Math.min(Math.round((raised / target) * 100), 100);
+            var catBadge = '';
+            if (p.category === 'Building') catBadge = '<span class="badge badge-primary">' + escapeHtml(p.category) + '</span>';
+            else if (p.category === 'Missions') catBadge = '<span class="badge badge-success">' + escapeHtml(p.category) + '</span>';
+            else if (p.category === 'Youth') catBadge = '<span class="badge badge-info">' + escapeHtml(p.category) + '</span>';
+            else catBadge = '<span class="badge badge-warning">' + escapeHtml(p.category || 'General') + '</span>';
+            grid.innerHTML += '<div class="card project-card"><div class="card-body">' +
+                '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><h3>' + escapeHtml(p.title || '') + '</h3>' + catBadge + '</div>' +
+                '<p class="text-muted text-sm mb-3">' + escapeHtml(p.description || '') + '</p>' +
+                '<div class="progress mb-2"><div class="progress-bar" style="width:' + pct + '%"></div></div>' +
+                '<div style="display:flex;justify-content:space-between;margin-bottom:12px"><span>' + formatCurrency(raised) + ' raised</span><span>' + formatCurrency(target) + ' target</span></div>' +
+                '<p class="text-center fw-700 text-blue mb-3" style="font-size:1.1rem">' + pct + '%</p>' +
+                '<button class="btn btn-primary btn-block" onclick="window.location.href=\'/pages/giving.html\'">Give to Project</button></div></div>';
+        });
+    }
+
+    API.projects.getAll({}).then(function(r) {
+        var projects = (r && r.data) ? (Array.isArray(r.data) ? r.data : r.data.projects || []) : [];
+        renderProjects(projects);
+    }).catch(function() { renderProjects([]); });
+    </script>
+</body>
+</html>

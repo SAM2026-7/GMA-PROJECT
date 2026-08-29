@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat - Admin - GMA City Complex</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <div id="app"></div>
+    <script src="../js/app.js"></script>
+    <script src="../js/components.js"></script>
+    <script src="../js/layouts.js"></script>
+    <script src="../js/api.js"></script>
+    <script>
+    if (!requireAuth('admin')) throw new Error('Not authorized');
+    var user = getUser();
+    var chats = [];
+    var allMessages = {};
+    var activeChatId = null;
+
+    function getMessages(chatId) { return allMessages[chatId] || []; }
+
+    function getChatTitle(chat) {
+        return chat.participantNames ? chat.participantNames.join(' & ') : (chat.title || 'Conversation');
+    }
+
+    function renderChatApp() {
+        var activeChat = chats.find(function(c) { return c.id === activeChatId; });
+        var msgs = activeChatId ? getMessages(activeChatId) : [];
+
+        var chatListHtml = '';
+        chats.forEach(function(c) {
+            var isActive = c.id === activeChatId;
+            var title = getChatTitle(c);
+            var unread = c.unread || 0;
+            chatListHtml += '<div class="chat-list-item' + (isActive ? ' active' : '') + '" data-chat="' + escapeHtml(c.id) + '">' +
+                '<div class="avatar" style="width:40px;height:40px;font-size:0.8rem;background:var(--royal-blue);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0">' + getInitials(title) + '</div>' +
+                '<div style="flex:1;min-width:0">' +
+                '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">' +
+                '<strong style="font-size:0.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + escapeHtml(title) + '</strong>' +
+                (unread > 0 ? '<span class="badge badge-danger" style="font-size:0.7rem;padding:2px 7px">' + unread + '</span>' : '') +
+                '</div>' +
+                '<div style="font-size:0.8rem;color:var(--gray-500);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + escapeHtml(c.lastMessage || '') + '</div>' +
+                '<div style="font-size:0.7rem;color:var(--gray-400);margin-top:2px">' + timeAgo(c.lastTime || c.updatedAt) + '</div>' +
+                '</div></div>';
+        });
+
+        var headerHtml = '';
+        if (activeChat) {
+            headerHtml = '<div class="chat-header" style="display:flex;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid var(--gray-100)">' +
+                '<div class="avatar" style="width:40px;height:40px;font-size:0.85rem;background:var(--royal-blue);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center">' + getInitials(getChatTitle(activeChat)) + '</div>' +
+                '<div><strong style="font-size:1rem">' + escapeHtml(getChatTitle(activeChat)) + '</strong>' +
+                '<div style="font-size:0.8rem;color:var(--gray-500)"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px;background:var(--gray-400)"></span>Offline</div></div>' +
+                '<div style="margin-left:auto;font-size:0.8rem;color:var(--gray-500)">Case: ' + (activeChat.caseId || 'N/A') + '</div></div>';
+        } else {
+            headerHtml = '<div class="chat-header" style="display:flex;align-items:center;justify-content:center;padding:16px 20px;border-bottom:1px solid var(--gray-100)"><strong style="color:var(--gray-500)">Select a conversation</strong></div>';
+        }
+
+        var msgsHtml = '';
+        if (msgs.length > 0) {
+            msgs.forEach(function(m) {
+                var isAdmin = (m.senderRole === 'admin' || m.senderRole === 'pastor' || m.senderRole === 'counselor') || (m.senderId && m.senderId.indexOf('ADM') === 0);
+                var alignment = isAdmin ? 'flex-start' : 'flex-end';
+                var bubbleBg = isAdmin ? 'var(--gray-100)' : 'var(--royal-blue)';
+                var bubbleColor = isAdmin ? 'var(--gray-800)' : '#fff';
+                msgsHtml += '<div class="chat-message" style="display:flex;flex-direction:column;align-items:' + alignment + ';margin-bottom:12px">' +
+                    '<div style="font-size:0.75rem;color:var(--gray-500);margin-bottom:2px">' + escapeHtml(m.senderName || m.sender_name || '') + '</div>' +
+                    '<div class="chat-bubble" style="max-width:70%;padding:10px 14px;border-radius:var(--radius);background:' + bubbleBg + ';color:' + bubbleColor + '">' + escapeHtml(m.text || m.content || '') + '</div>' +
+                    '<div style="font-size:0.7rem;color:var(--gray-400);margin-top:2px">' + formatDateTime(m.time || m.createdAt || m.created_at) + '</div></div>';
+            });
+        } else {
+            msgsHtml = '<div class="empty-state" style="margin:auto;text-align:center;padding:40px">' +
+                '<div style="font-size:3rem;margin-bottom:12px">💬</div>' +
+                '<h3 style="margin:0 0 4px">No messages yet</h3>' +
+                '<p style="color:var(--gray-500);margin:0">Start a conversation.</p></div>';
+        }
+
+        var content = '<div class="content-header"><div><h1 class="page-title">Chat</h1><p class="page-description">Communicate with members and pastoral team.</p></div><div><button class="btn btn-primary btn-sm" onclick="window.startNewConversation()">+ New Conversation</button></div></div>';
+        content += '<div class="card" style="overflow:hidden"><div class="card-body" style="padding:0">' +
+            '<div class="chat-layout" style="display:flex;height:calc(100vh - 220px);min-height:400px">' +
+            '<div class="chat-sidebar" style="width:320px;border-right:1px solid var(--gray-100);display:flex;flex-direction:column">' +
+            '<div style="padding:12px;border-bottom:1px solid var(--gray-100)"><input type="text" id="chatSearch" placeholder="Search conversations..." style="width:100%;padding:10px 14px;border:1px solid var(--gray-200);border-radius:var(--radius);font-size:0.9rem;background:var(--gray-50);outline:none"></div>' +
+            '<div class="chat-list" id="chatList" style="flex:1;overflow-y:auto">' + (chatListHtml || '<div class="empty-state" style="padding:40px"><p>No conversations.</p></div>') + '</div></div>' +
+            '<div class="chat-main" style="flex:1;display:flex;flex-direction:column">' + headerHtml +
+            '<div class="chat-messages" id="chatMessages" style="flex:1;overflow-y:auto;padding:20px">' + msgsHtml + '</div>' +
+            '<div class="chat-input" style="display:flex;gap:8px;padding:12px 16px;border-top:1px solid var(--gray-100)">' +
+            '<input type="text" id="chatInput" placeholder="Type a message..." style="flex:1;padding:10px 14px;border:1px solid var(--gray-200);border-radius:var(--radius);font-size:0.9rem;outline:none" ' + (!activeChat ? 'disabled' : '') + '>' +
+            '<button class="btn btn-primary btn-sm" id="sendBtn" ' + (!activeChat ? 'disabled' : '') + '>Send</button></div></div></div></div></div>';
+
+        document.getElementById('app').innerHTML = renderAdminLayout('chat', content);
+        document.getElementById('sidebarToggle').addEventListener('click', function() { document.getElementById('sidebar').classList.toggle('open'); });
+
+        document.querySelectorAll('[data-chat]').forEach(function(el) {
+            el.addEventListener('click', function() { activeChatId = el.getAttribute('data-chat'); renderChatApp(); });
+        });
+
+        var input = document.getElementById('chatInput');
+        var sendBtn = document.getElementById('sendBtn');
+        var msgContainer = document.getElementById('chatMessages');
+
+        function sendMessage() {
+            if (!input.value.trim() || !activeChatId) return;
+            var msgData = { conversationId: activeChatId, text: input.value.trim(), senderId: user.id, senderName: user.name || user.fullName, senderRole: 'admin' };
+            input.value = '';
+            API.chat.sendMessage(msgData).then(function(r) {
+                var newMsg = (r && r.data) ? r.data : msgData;
+                if (!allMessages[activeChatId]) allMessages[activeChatId] = [];
+                allMessages[activeChatId].push(newMsg);
+                var chat = chats.find(function(c) { return c.id === activeChatId; });
+                if (chat) { chat.lastMessage = newMsg.text || msgData.text; chat.lastTime = new Date().toISOString(); }
+                renderChatApp();
+            }).catch(function() {
+                if (!allMessages[activeChatId]) allMessages[activeChatId] = [];
+                allMessages[activeChatId].push(msgData);
+                renderChatApp();
+            });
+        }
+
+        if (sendBtn) sendBtn.addEventListener('click', sendMessage);
+        if (input) input.addEventListener('keypress', function(e) { if (e.key === 'Enter') sendMessage(); });
+        if (msgContainer) msgContainer.scrollTop = msgContainer.scrollHeight;
+
+        var searchInput = document.getElementById('chatSearch');
+        if (searchInput) {
+            searchInput.addEventListener('input', function() {
+                var term = this.value.toLowerCase();
+                document.querySelectorAll('[data-chat]').forEach(function(el) {
+                    var id = el.getAttribute('data-chat');
+                    var chat = chats.find(function(c) { return c.id === id; });
+                    if (chat) {
+                        var title = getChatTitle(chat).toLowerCase();
+                        el.style.display = title.indexOf(term) !== -1 ? '' : 'none';
+                    }
+                });
+            });
+        }
+    }
+
+    renderChatApp();
+    API.chat.getAll().then(function(r) {
+        chats = (r && r.data) ? (Array.isArray(r.data) ? r.data : r.data.data || []) : [];
+        if (chats.length > 0) {
+            activeChatId = chats[0].id;
+            loadAllMessages();
+        } else { renderChatApp(); }
+    }).catch(function() {
+        API.chat.byCounselor(user.staffId || user.id).then(function(r) {
+            chats = (r && r.data) ? (Array.isArray(r.data) ? r.data : r.data.conversations || []) : [];
+            if (chats.length > 0) {
+                activeChatId = chats[0].id;
+                loadAllMessages();
+            } else { renderChatApp(); }
+        }).catch(function() {
+            API.chat.byMember(user.id).then(function(r2) {
+                chats = (r2 && r2.data) ? (Array.isArray(r2.data) ? r2.data : r2.data.conversations || []) : [];
+                if (chats.length > 0) { activeChatId = chats[0].id; loadAllMessages(); }
+                else { renderChatApp(); }
+            }).catch(function() { chats = []; renderChatApp(); });
+        });
+    });
+    });
+
+    window.startNewConversation = function() {
+        var memberId = prompt('Enter member ID to start conversation with:');
+        if (!memberId) return;
+        API.chat.createConversation({ memberId: parseInt(memberId), counselorId: user.staffId || user.id, category: 'general' }).then(function(r) {
+            showToast('Conversation started', 'success');
+            loadChats();
+        }).catch(function() { showToast('Failed to start conversation', 'error'); });
+    };
+
+    function loadChats() {
+        API.chat.byCounselor(user.staffId || user.id).then(function(r) {
+            chats = (r && r.data) ? (Array.isArray(r.data) ? r.data : r.data.conversations || []) : [];
+            if (chats.length > 0) {
+                if (!activeChatId) activeChatId = chats[0].id;
+                loadAllMessages();
+            } else {
+                activeChatId = null;
+                renderChatApp();
+            }
+        }).catch(function() {
+            API.chat.byMember(user.id).then(function(r2) {
+                chats = (r2 && r2.data) ? (Array.isArray(r2.data) ? r2.data : r2.data.conversations || []) : [];
+                if (chats.length > 0) {
+                    if (!activeChatId) activeChatId = chats[0].id;
+                    loadAllMessages();
+                } else {
+                    activeChatId = null;
+                    renderChatApp();
+                }
+            }).catch(function() {
+                chats = [];
+                activeChatId = null;
+                renderChatApp();
+            });
+        });
+    }
+
+    function loadAllMessages() {
+        var promises = chats.map(function(c) {
+            return API.chat.getMessages(c.id).then(function(r) {
+                allMessages[c.id] = (r && r.data) ? (Array.isArray(r.data) ? r.data : r.data.messages || []) : [];
+            }).catch(function() { allMessages[c.id] = []; });
+        });
+        Promise.all(promises).then(function() { renderChatApp(); });
+    }
+    
+</body>
+</html>
