@@ -99,7 +99,19 @@ export function createApp() {
   app.use('/api/members', membersRouter);
   app.use('/api/staff', staffRouter);
 
-  app.use(express.static(path.resolve(__dirname, '../../')));
+  const staticRoot = path.resolve(__dirname, '../../');
+  app.use(express.static(staticRoot));
+
+  app.get('/login', (_req, res) => res.redirect('/pages/login.html'));
+  app.get('/login.html', (_req, res) => res.redirect('/pages/login.html'));
+  app.get('/register', (_req, res) => res.redirect('/pages/register.html'));
+  app.get('/admin', (_req, res) => res.redirect('/admin/dashboard.html'));
+  app.get('/member', (_req, res) => res.redirect('/member/dashboard.html'));
+  app.get('/', (_req, res) => res.redirect('/index.html'));
+
+  app.use((_req, res) => {
+    res.status(404).sendFile(path.join(staticRoot, 'index.html'));
+  });
 
   app.use(errorHandler);
 
