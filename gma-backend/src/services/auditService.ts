@@ -96,7 +96,14 @@ export async function getAuditLogs(filter: AuditFilter): Promise<PaginatedResult
   };
 }
 
-export async function getRecentActivity(limit: number = 10): Promise<AuditLog[]> {
+export async function getRecentActivity(limit: number = 10, userId?: number): Promise<AuditLog[]> {
+  if (userId) {
+    const own = await query(
+      'SELECT * FROM audit_logs WHERE user_id = ? ORDER BY created_at DESC LIMIT ?',
+      [userId, limit]
+    );
+    return own as AuditLog[];
+  }
   const logs = await query(
     'SELECT * FROM audit_logs ORDER BY created_at DESC LIMIT ?',
     [limit]

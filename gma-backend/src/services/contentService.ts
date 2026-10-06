@@ -61,24 +61,30 @@ export async function updateSection(pageId: number, sectionKey: string, data: { 
 
 export async function createTestimony(data: {
   member_id?: number;
+  name?: string;
   author_name?: string;
   title: string;
   content: string;
+  text?: string;
   category?: string;
   status?: string;
 }) {
   const now = new Date().toISOString();
+  const authorName = data.author_name || data.name || 'Member';
+  const body = data.text || data.content;
 
   await query(
     `INSERT INTO testimonies (
-      member_id, author_name, title, content, category, status,
+      member_id, name, author_name, title, content, text, category, status,
       created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       data.member_id || null,
-      data.author_name || null,
+      authorName,
+      authorName,
       data.title,
       data.content,
+      body,
       data.category || 'general',
       data.status || 'pending',
       now,

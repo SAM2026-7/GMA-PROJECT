@@ -12,6 +12,7 @@ import {
   getBookingsForCalendar,
 } from '../services/bookingService';
 import { AuthRequest } from '../types/index';
+import { isStaffUser, resolveMemberId } from '../middleware/auth';
 import { sendAutoResponse, sendAdminAlert } from '../services/emailService';
 
 export async function createBookingHandler(req: AuthRequest, res: Response) {
@@ -93,13 +94,22 @@ export async function getAllBookingsHandler(req: AuthRequest, res: Response) {
   try {
     const page = Math.max(1, parseInt(req.query.page as string) || 1);
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 20));
+    const staff = isStaffUser(req);
+    let memberId = req.query.member_id ? parseInt(req.query.member_id as string) : undefined;
+    if (!staff) {
+      const ownId = await resolveMemberId(req);
+      if (ownId === null) {
+        return res.status(200).json({ success: true, data: [], total: 0, page, limit, totalPages: 0 });
+      }
+      memberId = ownId;
+    }
     const result = await getAllBookings({
       page,
       limit,
       status: req.query.status as string | undefined,
       service_type: req.query.service_type as string | undefined,
       assigned_to: req.query.assigned_to ? parseInt(req.query.assigned_to as string) : undefined,
-      member_id: req.query.member_id ? parseInt(req.query.member_id as string) : undefined,
+      member_id: memberId,
       start_date: req.query.start_date as string | undefined,
       end_date: req.query.end_date as string | undefined,
       search: req.query.search as string | undefined,
@@ -116,6 +126,12 @@ export async function getBookingHandler(req: AuthRequest, res: Response) {
     const booking = await getBookingById(id);
     if (!booking) {
       return res.status(404).json({ error: 'Booking not found' });
+    }
+    if (!isStaffUser(req)) {
+      const ownId = await resolveMemberId(req);
+      if (ownId === null || booking.member_id !== ownId) {
+        return res.status(403).json({ error: 'You can only view your own bookings' });
+      }
     }
     return res.status(200).json({ success: true, data: booking });
   } catch (error) {
@@ -190,7 +206,15 @@ export async function getTodayBookingsHandler(req: AuthRequest, res: Response) {
 
 export async function getBookingsByMemberHandler(req: AuthRequest, res: Response) {
   try {
-    const memberId = parseInt(req.params.memberId);
+    let memberId = parseInt(req.params.memberId);
+    if (!isStaffUser(req)) {
+      const ownId = await resolveMemberId(req);
+      if (ownId === null) return res.status(200).json({ success: true, data: [] });
+      if (memberId !== ownId) {
+        return res.status(403).json({ error: 'You can only view your own bookings' });
+      }
+      memberId = ownId;
+    }
     const bookings = await getBookingsByMember(memberId);
     return res.status(200).json({ success: true, data: bookings });
   } catch (error) {

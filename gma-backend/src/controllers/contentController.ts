@@ -43,11 +43,11 @@ export async function updateSectionHandler(req: AuthRequest, res: Response) {
 
 export async function createTestimonyHandler(req: AuthRequest, res: Response) {
   try {
-    const { author_name, title, content, category } = req.body;
+    const { author_name, name, title, content, text, category } = req.body;
     if (!title || !content) {
       return res.status(400).json({ error: 'Title and content are required' });
     }
-    const testimony = await createTestimony({ author_name, title, content, category, member_id: req.user?.id });
+    const testimony = await createTestimony({ author_name, name, title, content, text, category, member_id: req.user?.id });
     return res.status(201).json({ success: true, data: testimony });
   } catch (error) {
     return res.status(500).json({ error: 'Failed to create testimony' });

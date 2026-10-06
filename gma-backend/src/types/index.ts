@@ -59,6 +59,25 @@ export interface Staff {
   updated_at: string;
 }
 
+export interface Donation {
+  id: number;
+  reference: string;
+  member_id?: number;
+  donor_name: string;
+  donor_email?: string;
+  donor_phone?: string;
+  category: string;
+  amount: number;
+  method: string;
+  currency: string;
+  reference_note?: string;
+  notes?: string;
+  status: string;
+  pledged: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Booking {
   id: number;
   booking_id: string;

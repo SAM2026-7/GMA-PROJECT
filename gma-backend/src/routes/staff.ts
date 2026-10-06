@@ -1,8 +1,9 @@
 import { Router } from 'express';
-import { authMiddleware } from '../middleware/auth';
+import { authMiddleware, requireStaffOrAdmin } from '../middleware/auth';
 import {
   createStaffHandler,
   getAllStaffHandler,
+  getPublicStaffHandler,
   getStaffByIdHandler,
   updateStaffHandler,
   deleteStaffHandler,
@@ -12,7 +13,8 @@ import {
 
 export const staffRouter = Router();
 
-staffRouter.use(authMiddleware);
+staffRouter.get('/public', getPublicStaffHandler);
+staffRouter.use(authMiddleware, requireStaffOrAdmin);
 
 staffRouter.get('/workload', getStaffWorkloadHandler);
 staffRouter.get('/', getAllStaffHandler);

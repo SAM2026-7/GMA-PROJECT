@@ -1,6 +1,7 @@
 import { AuthRequest } from '../types/index';
 import * as prayerService from '../services/prayerService';
 import { Response } from 'express';
+import { isStaffUser, resolveMemberId } from '../middleware/auth';
 import { sendAutoResponse } from '../services/emailService';
 
 export const createPrayerRequestHandler = async (req: AuthRequest, res: Response) => {
@@ -15,8 +16,9 @@ export const createPrayerRequestHandler = async (req: AuthRequest, res: Response
     if (data.description && !data.text) {
       data.text = data.description;
     }
+    const memberId = req.user ? await resolveMemberId(req) : null;
     const prayerRequest = await prayerService.createPrayerRequest({
-      member_id: data.member_id,
+      member_id: memberId === null ? undefined : memberId,
       visitor_name: data.visitor_name,
       category: data.category,
       text: data.text,
@@ -37,7 +39,7 @@ export const createPrayerRequestHandler = async (req: AuthRequest, res: Response
       }).catch(() => {});
     }
     
-    res.status(201).json(prayerRequest);
+    res.status(201).json({ success: true, data: prayerRequest });
   } catch (error: any) {
     res.status(400).json({ message: error.message });
   }
@@ -45,7 +47,7 @@ export const createPrayerRequestHandler = async (req: AuthRequest, res: Response
 
 export const getAllPrayerRequestsHandler = async (req: AuthRequest, res: Response) => {
   try {
-    const filter = {
+    const filter: any = {
       status: req.query.status as string,
       category: req.query.category as string,
       urgency: req.query.urgency as string,
@@ -54,6 +56,13 @@ export const getAllPrayerRequestsHandler = async (req: AuthRequest, res: Respons
       page: parseInt(req.query.page as string) || 1,
       limit: parseInt(req.query.limit as string) || 20,
     };
+    if (!isStaffUser(req)) {
+      const ownId = await resolveMemberId(req);
+      if (ownId === null) {
+        return res.status(200).json({ success: true, data: [], total: 0, page: 1, limit: 20, totalPages: 0 });
+      }
+      filter.member_id = ownId;
+    }
     const prayerRequests = await prayerService.getAllPrayerRequests(filter);
     res.status(200).json(prayerRequests);
   } catch (error: any) {
@@ -68,7 +77,13 @@ export const getPrayerRequestHandler = async (req: AuthRequest, res: Response) =
     if (!prayerRequest) {
       return res.status(404).json({ message: 'Prayer request not found' });
     }
-    res.status(200).json(prayerRequest);
+    if (!isStaffUser(req)) {
+      const ownId = await resolveMemberId(req);
+      if (ownId === null || prayerRequest.member_id !== ownId) {
+        return res.status(403).json({ message: 'You can only view your own prayer requests' });
+      }
+    }
+    res.status(200).json({ success: true, data: prayerRequest });
   } catch (error: any) {
     res.status(500).json({ message: error.message });
   }

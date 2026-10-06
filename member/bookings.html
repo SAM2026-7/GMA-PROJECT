@@ -19,20 +19,21 @@
     var activeTab = 'All';
 
     function render() {
-        var filtered = activeTab === 'All' ? allBookings : allBookings.filter(function(b) { return b.status === activeTab.toLowerCase(); });
+        var filtered = activeTab === 'All' ? allBookings : allBookings.filter(function(b) { return (b.status || '').toLowerCase() === activeTab.toLowerCase(); });
         var content = '<div class="content-header"><div><h1 class="page-title">My Bookings</h1></div><a href="/pages/booking.html" class="btn btn-primary">+ New Booking</a></div>';
         content += '<div class="tabs">';
         ['All', 'Pending', 'Confirmed', 'Completed', 'Cancelled'].forEach(function(tab) { content += '<button class="tab ' + (activeTab === tab ? 'active' : '') + '" onclick="window._tab(\'' + tab + '\')">' + tab + '</button>'; });
         content += '</div>';
         if (filtered.length === 0) content += '<div class="empty-state"><p>No bookings found.</p><a href="/pages/booking.html" class="btn btn-primary btn-sm">Book a Session</a></div>';
         else filtered.forEach(function(b) {
-            content += '<div class="card" style="margin-bottom:16px"><div class="card-header" style="display:flex;justify-content:space-between"><span>Booking #' + escapeHtml(String(b.id).substring(0, 8)) + '</span>' + getStatusBadge(b.status) + '</div><div class="card-body">' +
+            content += '<div class="card" style="margin-bottom:16px"><div class="card-header" style="display:flex;justify-content:space-between"><span>' + escapeHtml(b.bookingRef) + '</span>' + getStatusBadge(b.status) + '</div><div class="card-body">' +
                 '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">' +
-                '<p><strong>Service:</strong> ' + escapeHtml(b.serviceType || b.service || '') + '</p>' +
-                '<p><strong>Type:</strong> ' + escapeHtml(b.sessionType || b.type || '') + '</p>' +
-                '<p><strong>Date:</strong> ' + escapeHtml(b.date || b.bookingDate || '') + '</p>' +
-                '<p><strong>Time:</strong> ' + escapeHtml(b.time || b.bookingTime || '') + '</p>' +
-                '<p><strong>Meeting:</strong> ' + escapeHtml(b.meetingType || '') + '</p>' +
+                '<p><strong>Service:</strong> ' + escapeHtml(b.serviceType) + '</p>' +
+                '<p><strong>Type:</strong> ' + escapeHtml(b.sessionType) + '</p>' +
+                '<p><strong>Date:</strong> ' + escapeHtml(b.date) + '</p>' +
+                '<p><strong>Time:</strong> ' + escapeHtml(b.time || '-') + '</p>' +
+                '<p><strong>Meeting:</strong> ' + escapeHtml(b.meetingType) + '</p>' +
+                (b.reason ? '<p><strong>Reason:</strong> ' + escapeHtml(b.reason) + '</p>' : '') +
                 '</div></div></div>';
         });
         document.getElementById('app').innerHTML = renderMemberLayout('bookings', content);
@@ -41,10 +42,13 @@
 
     window._tab = function(tab) { activeTab = tab; render(); };
     render();
-    API.bookings.byMember(user.memberId || user.id).then(function(r) {
-        allBookings = (r && r.data) ? (Array.isArray(r.data) ? r.data : r.data.bookings || []) : [];
-        render();
-    }).catch(function() { allBookings = []; render(); });
+    getCurrentMember().then(function(member) {
+        if (!member) { allBookings = []; render(); return; }
+        return API.bookings.byMember(member.id).then(function(r) {
+            allBookings = normalizeList(r);
+            render();
+        }).catch(function() { allBookings = []; render(); });
+    });
     </script>
 </body>
 </html>

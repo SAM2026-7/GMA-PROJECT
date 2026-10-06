@@ -4,6 +4,7 @@ import {
   createStaff,
   getStaffById,
   getAllStaff,
+  getPublicStaff,
   updateStaff,
   deleteStaff,
   getStaffAvailability,
@@ -23,6 +24,16 @@ export async function createStaffHandler(req: AuthRequest, res: Response) {
     return res.status(201).json({ success: true, data: staff });
   } catch (error) {
     return res.status(400).json({ error: error instanceof Error ? error.message : 'Failed to create staff' });
+  }
+}
+
+export async function getPublicStaffHandler(req: AuthRequest, res: Response) {
+  try {
+    const { department } = req.query;
+    const staff = await getPublicStaff(department as string);
+    return res.status(200).json({ success: true, data: staff });
+  } catch (error) {
+    return res.status(500).json({ error: error instanceof Error ? error.message : 'Failed to fetch staff' });
   }
 }
 

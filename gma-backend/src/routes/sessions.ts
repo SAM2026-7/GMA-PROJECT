@@ -9,11 +9,11 @@ import {
   getSessionsByMemberHandler,
   getCounselorStatsHandler,
 } from '../controllers/sessionController';
-import { authMiddleware } from '../middleware/auth';
+import { authMiddleware, requireStaffOrAdmin } from '../middleware/auth';
 
 export const sessionsRouter = Router();
 
-sessionsRouter.use(authMiddleware);
+sessionsRouter.use(authMiddleware, requireStaffOrAdmin);
 
 sessionsRouter.post('/', createSessionHandler);
 sessionsRouter.get('/', getAllSessionsHandler);

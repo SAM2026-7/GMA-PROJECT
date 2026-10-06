@@ -11,7 +11,7 @@ import {
   getBookingsByMemberHandler,
   getCalendarHandler,
 } from '../controllers/bookingController';
-import { authMiddleware } from '../middleware/auth';
+import { authMiddleware, requireStaffOrAdmin } from '../middleware/auth';
 
 export const bookingsRouter = Router();
 
@@ -19,12 +19,12 @@ bookingsRouter.post('/', createBookingHandler);
 
 bookingsRouter.use(authMiddleware);
 
-bookingsRouter.get('/today', getTodayBookingsHandler);
-bookingsRouter.get('/calendar', getCalendarHandler);
 bookingsRouter.get('/member/:memberId', getBookingsByMemberHandler);
+bookingsRouter.get('/today', requireStaffOrAdmin, getTodayBookingsHandler);
+bookingsRouter.get('/calendar', requireStaffOrAdmin, getCalendarHandler);
 bookingsRouter.get('/', getAllBookingsHandler);
 bookingsRouter.get('/:id', getBookingHandler);
-bookingsRouter.put('/:id', updateBookingHandler);
-bookingsRouter.patch('/:id/confirm', confirmBookingHandler);
-bookingsRouter.patch('/:id/cancel', cancelBookingHandler);
-bookingsRouter.delete('/:id', deleteBookingHandler);
+bookingsRouter.put('/:id', requireStaffOrAdmin, updateBookingHandler);
+bookingsRouter.patch('/:id/confirm', requireStaffOrAdmin, confirmBookingHandler);
+bookingsRouter.patch('/:id/cancel', requireStaffOrAdmin, cancelBookingHandler);
+bookingsRouter.delete('/:id', requireStaffOrAdmin, deleteBookingHandler);

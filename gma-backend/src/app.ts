@@ -20,6 +20,7 @@ import { sermonsRouter } from './routes/sermons';
 import { contentRouter } from './routes/content';
 import { siteSettingsRouter } from './routes/siteSettings';
 import { submissionsRouter } from './routes/submissions';
+import { donationsRouter } from './routes/donations';
 import { membersRouter } from './routes/members';
 import { staffRouter } from './routes/staff';
 import { errorHandler } from './middleware/errorHandler';
@@ -96,6 +97,7 @@ export function createApp() {
   app.use('/api/content', contentRouter);
   app.use('/api/site-settings', siteSettingsRouter);
   app.use('/api/submissions', submissionsRouter);
+  app.use('/api/donations', donationsRouter);
   app.use('/api/members', membersRouter);
   app.use('/api/staff', staffRouter);
 

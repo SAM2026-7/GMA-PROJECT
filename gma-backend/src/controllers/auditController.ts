@@ -1,5 +1,6 @@
 import { Response } from 'express';
 import { AuthRequest } from '../types/index';
+import { isStaffUser } from '../middleware/auth';
 import { getAuditLogs, getRecentActivity, getAuditStats, logAudit } from '../services/auditService';
 
 export async function getAuditLogsHandler(req: AuthRequest, res: Response) {
@@ -29,7 +30,7 @@ export async function getRecentActivityHandler(req: AuthRequest, res: Response) 
       return res.status(401).json({ error: 'Unauthorized' });
     }
     const limit = req.query.limit ? parseInt(req.query.limit as string) : 10;
-    const logs = await getRecentActivity(limit);
+    const logs = await getRecentActivity(limit, isStaffUser(req) ? undefined : req.user.id);
     return res.status(200).json({ success: true, data: logs });
   } catch (error) {
     return res.status(500).json({ error: error instanceof Error ? error.message : 'Failed to fetch recent activity' });

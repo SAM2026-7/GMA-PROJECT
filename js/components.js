@@ -134,7 +134,7 @@ function renderMemberSidebar(activePage) {
         });
     });
     html += '<div class="sidebar-section">Account</div>';
-    html += '<a href="#" class="sidebar-link" onclick="removeToken();window.location.href=\'/index.html\'"><span class="icon">\uD83D\uDEAA</span><span>Logout</span></a>';
+    html += '<a href="#" class="sidebar-link" onclick="logout();return false"><span class="icon">\uD83D\uDEAA</span><span>Logout</span></a>';
     html += '</div></aside>';
     return html;
 }
@@ -185,7 +185,7 @@ function renderAdminSidebar(activePage) {
         });
     });
     html += '<div class="sidebar-section">Account</div>';
-    html += '<a href="#" class="sidebar-link" onclick="removeToken();window.location.href=\'/index.html\'"><span class="icon">\uD83D\uDEAA</span><span>Logout</span></a>';
+    html += '<a href="#" class="sidebar-link" onclick="logout();return false"><span class="icon">\uD83D\uDEAA</span><span>Logout</span></a>';
     html += '</div></aside>';
     return html;
 }

@@ -117,11 +117,21 @@
     document.getElementById('date').setAttribute('min', today);
     var params = new URLSearchParams(window.location.search);
     if (params.get('service')) document.getElementById('service').value = params.get('service');
+    var currentMember = null;
     var user = getUser();
     if (user) {
         document.getElementById('name').value = user.name || '';
-        document.getElementById('phone').value = user.phone || '';
         document.getElementById('email').value = user.email || '';
+    }
+    if (isLoggedIn()) {
+        getCurrentMember().then(function(member) {
+            currentMember = member;
+            if (!member) return;
+            document.getElementById('name').value = member.name || document.getElementById('name').value;
+            document.getElementById('email').value = member.email || document.getElementById('email').value;
+            if (member.phone) document.getElementById('phone').value = member.phone;
+            if (member.preferred_contact) document.getElementById('preferredContact').value = member.preferred_contact;
+        });
     }
 
     document.getElementById('bookingForm').addEventListener('submit', function(e) {
@@ -147,6 +157,7 @@
         btn.disabled = true;
 
         API.bookings.create({
+            member_id: currentMember ? currentMember.id : null,
             fullName: name,
             phone: phone,
             email: email,
@@ -158,8 +169,9 @@
             reason: reason,
             preferredContact: preferredContact
         }).then(function(r) {
+            var bookingId = (r && r.data && r.data.booking_id) ? r.data.booking_id : ((r && r.data && r.data.id) ? String(r.data.id) : 'GMA-' + new Date().getFullYear() + '-' + Date.now().toString().slice(-5));
             saveLocalSubmission({
-                id: (r && r.data && r.data.id) ? r.data.id : 'GMA-2026-' + Date.now().toString().slice(-5),
+                id: bookingId,
                 type: 'Booking',
                 name: name,
                 phone: phone,
@@ -171,11 +183,12 @@
                 meetingType: meetingType,
                 reason: reason,
                 preferredContact: preferredContact,
+                status: 'pending',
                 submittedAt: new Date().toISOString()
             });
-            var bookingId = (r && r.data && r.data.id) ? r.data.id : 'GMA-2026-' + Date.now().toString().slice(-5);
+            logFrontendAction('create', 'booking', (r && r.data) ? r.data.id : null, 'Booking ' + bookingId + ' for ' + service);
             document.getElementById('bookingMessage').style.display = 'block';
-            document.getElementById('bookingMessage').innerHTML = '<div class="alert alert-success" style="max-width:680px;margin:0 auto"><div><strong style="font-size:1.1rem">Booking Received!</strong><br><br>Booking ID: <strong>#' + bookingId + '</strong><br><br>Thank you for your request. Our pastoral care team will contact you within 24 hours to confirm your session.<br><br><a href="/index.html" class="btn btn-primary btn-sm" style="margin-top:12px">Return Home</a></div></div>';
+            document.getElementById('bookingMessage').innerHTML = '<div class="alert alert-success" style="max-width:680px;margin:0 auto"><div><strong style="font-size:1.1rem">Booking Received!</strong><br><br>Booking ID: <strong>' + escapeHtml(bookingId) + '</strong><br><br>Thank you for your request. Our pastoral care team will review it in the admin panel and contact you within 24 hours to confirm your session.<br><br>' + (isMember() ? '<a href="/member/bookings.html" class="btn btn-primary btn-sm" style="margin-top:12px">View My Bookings</a>' : '') + '<a href="/index.html" class="btn btn-primary btn-sm" style="margin-top:12px">Return Home</a></div></div>';
             document.getElementById('bookingForm').style.display = 'none';
         }).catch(function(err) {
             saveLocalSubmission({
@@ -196,7 +209,7 @@
             btn.textContent = 'Submit Booking Request';
             btn.disabled = false;
             document.getElementById('bookingMessage').style.display = 'block';
-            document.getElementById('bookingMessage').innerHTML = '<div class="alert alert-warning" style="max-width:680px;margin:0 auto"><div><strong style="font-size:1.1rem">Saved Locally</strong><br><br>We could not reach the server, but your booking request has been saved. Our team will review it shortly.<br><br><small>' + escapeHtml(err.message || 'Unknown error') + '</small></div></div>';
+            document.getElementById('bookingMessage').innerHTML = '<div class="alert alert-warning" style="max-width:680px;margin:0 auto"><div><strong style="font-size:1.1rem">Saved Locally</strong><br><br>The server could not be reached, so your request is only stored on this device and is not yet visible to the pastoral team. Please check your connection and submit again.<br><br><small>' + escapeHtml(err.message || 'Unknown error') + '</small></div></div>';
         });
     });
     </script>

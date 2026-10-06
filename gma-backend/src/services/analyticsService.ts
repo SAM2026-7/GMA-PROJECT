@@ -3,33 +3,57 @@ import { query } from '../db/index';
 export async function getDashboardStats(): Promise<{
   totalMembers: number;
   activeCases: number;
+  totalBookings: number;
+  todayBookings: number;
   pendingBookings: number;
+  confirmedBookings: number;
+  completedBookings: number;
   totalPrayerRequests: number;
   totalGiving: number;
   unreadChats: number;
   followupsDueToday: number;
   overdueFollowups: number;
+  recentBookings: any[];
 }> {
   const today = new Date().toISOString().split('T')[0];
 
   const totalMembersResult = await query('SELECT COUNT(*) as count FROM members');
   const activeCasesResult = await query("SELECT COUNT(*) as count FROM cases WHERE status IN ('open', 'in_progress')");
-  const pendingBookingsResult = await query("SELECT COUNT(*) as count FROM bookings WHERE status = 'pending'");
+  const totalBookingsResult = await query('SELECT COUNT(*) as count FROM bookings');
+  const todayBookingsResult = await query('SELECT COUNT(*) as count FROM bookings WHERE preferred_date = ?', [today]);
+  const pendingBookingsResult = await query("SELECT COUNT(*) as count FROM bookings WHERE status IN ('pending', 'new')");
+  const confirmedBookingsResult = await query("SELECT COUNT(*) as count FROM bookings WHERE status = 'confirmed'");
+  const completedBookingsResult = await query("SELECT COUNT(*) as count FROM bookings WHERE status = 'completed'");
   const totalPrayerResult = await query('SELECT COUNT(*) as count FROM prayer_requests');
-  const totalGivingResult = await query('SELECT COALESCE(SUM(raised_amount), 0) as total FROM projects');
+  const totalGivingResult = await query('SELECT COALESCE(SUM(amount), 0) as total FROM donations');
   const unreadChatsResult = await query('SELECT COALESCE(SUM(member_unread + counselor_unread), 0) as total FROM chat_conversations');
   const followupsDueResult = await query("SELECT COUNT(*) as count FROM followups WHERE due_date = ? AND status != 'completed'", [today]);
   const overdueResult = await query("SELECT COUNT(*) as count FROM followups WHERE due_date < ? AND status != 'completed'", [today]);
 
+  const recentBookings = await query(
+    `SELECT b.id, b.booking_id, b.visitor_name, b.service_type, b.session_type,
+            b.preferred_date, b.preferred_time, b.meeting_type, b.status, b.created_at,
+            m.member_id as member_code
+     FROM bookings b
+     LEFT JOIN members m ON b.member_id = m.id
+     ORDER BY b.created_at DESC
+     LIMIT 5`
+  );
+
   return {
     totalMembers: (totalMembersResult[0] as any).count || 0,
     activeCases: (activeCasesResult[0] as any).count || 0,
+    totalBookings: (totalBookingsResult[0] as any).count || 0,
+    todayBookings: (todayBookingsResult[0] as any).count || 0,
     pendingBookings: (pendingBookingsResult[0] as any).count || 0,
+    confirmedBookings: (confirmedBookingsResult[0] as any).count || 0,
+    completedBookings: (completedBookingsResult[0] as any).count || 0,
     totalPrayerRequests: (totalPrayerResult[0] as any).count || 0,
     totalGiving: (totalGivingResult[0] as any).total || 0,
     unreadChats: (unreadChatsResult[0] as any).total || 0,
     followupsDueToday: (followupsDueResult[0] as any).count || 0,
     overdueFollowups: (overdueResult[0] as any).count || 0,
+    recentBookings: recentBookings as any[],
   };
 }
 

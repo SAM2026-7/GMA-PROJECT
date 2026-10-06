@@ -68,21 +68,18 @@
     document.getElementById('navContainer').innerHTML = renderPublicNav('about');
     loadPageSettings().then(function() { document.getElementById('footerContainer').innerHTML = renderFooter(); });
     setupNavigation();
-    API.staff.getAll({}).then(function(r) {
+    API.staff.publicList().then(function(r) {
         var staff = (r && r.data) ? (Array.isArray(r.data) ? r.data : r.data.staff || []) : [];
-        if (staff.length === 0) {
-            staff = [
-                { name: 'Pastor John Adeyemi', position: 'Senior Pastor', department: 'Leadership', specialization: 'Visionary Leadership & Preaching', bio: '' },
-                { name: 'Pastor Grace Okonkwo', position: 'Associate Pastor', department: 'Counseling', specialization: 'Marriage & Family Counseling', bio: '' },
-                { name: 'Pastor David Akinwale', position: 'Healing Minister', department: 'Healing', specialization: 'Spiritual Healing & Deliverance', bio: '' }
-            ];
-        }
         var pGrid = document.getElementById('pastorsGrid');
+        if (staff.length === 0) {
+            pGrid.innerHTML = '<p style="color:rgba(255,255,255,0.5);text-align:center;padding:24px 0">Leadership details are being updated.</p>';
+            return;
+        }
         staff.forEach(function(p) {
             var name = p.name || p.fullName || '';
             pGrid.innerHTML += '<div class="card card-body text-center" style="background:rgba(255,255,255,0.1);border-color:rgba(255,255,255,0.2)"><div class="avatar avatar-xl" style="margin:0 auto 12px;background:var(--gold);color:var(--royal-deep)">' + getInitials(name) + '</div><h4 style="color:#fff;margin-bottom:4px">' + escapeHtml(name) + '</h4><p style="color:var(--gold);font-size:0.85rem;margin-bottom:8px">' + escapeHtml(p.position || p.role || '') + '</p><p style="color:rgba(255,255,255,0.7);font-size:0.85rem">' + escapeHtml(p.specialization || p.department || '') + '</p></div>';
         });
-    }).catch(function() { document.getElementById('pastorsGrid').innerHTML = '<p style="color:rgba(255,255,255,0.5)">Loading staff...</p>'; });
+    }).catch(function() { document.getElementById('pastorsGrid').innerHTML = '<p style="color:rgba(255,255,255,0.5);text-align:center;padding:24px 0">Unable to load leadership details.</p>'; });
     </script>
 </body>
 </html>

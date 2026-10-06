@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { authMiddleware } from '../middleware/auth';
+import { authMiddleware, requireStaffOrAdmin } from '../middleware/auth';
 import {
   getNotificationsHandler,
   getUnreadCountHandler,
@@ -18,4 +18,4 @@ notificationsRouter.get('/unread-count', getUnreadCountHandler);
 notificationsRouter.patch('/read-all', markAllAsReadHandler);
 notificationsRouter.patch('/:id/read', markAsReadHandler);
 notificationsRouter.delete('/:id', deleteNotificationHandler);
-notificationsRouter.post('/send-email', sendEmailResponseHandler);
+notificationsRouter.post('/send-email', requireStaffOrAdmin, sendEmailResponseHandler);

@@ -41,33 +41,66 @@
     document.getElementById('sidebarToggle').addEventListener('click', function() { document.getElementById('sidebar').classList.toggle('open'); });
 
     var user = getUser();
-    var memberId = user.memberId || user.id;
+    var memberId = null;
+    var memberReady = getCurrentMember().then(function(member) {
+        if (!member) return null;
+        memberId = member.id;
+        var u = getUser() || {};
+        u.memberId = member.id;
+        setUser(u);
+        return member;
+    });
 
-    API.bookings.byMember(memberId).then(function(r) {
-        var bookings = (r && r.data) ? (Array.isArray(r.data) ? r.data : r.data.bookings || []) : [];
-        document.getElementById('statBookings').textContent = bookings.length;
-        var upcoming = bookings.filter(function(b) { return b.status === 'confirmed' || b.status === 'pending'; }).slice(0, 5);
-        var el = document.getElementById('bookingsList');
-        if (upcoming.length === 0) { el.innerHTML = '<p class="text-muted text-sm" style="padding:20px 0;text-align:center">No upcoming sessions</p>'; return; }
-        var h = '';
-        upcoming.forEach(function(b) {
-            h += '<div style="padding:10px 0;border-bottom:1px solid var(--gray-100)"><strong style="font-size:0.9rem">' + escapeHtml(b.serviceType || b.service || '') + '</strong><br><span class="text-muted text-sm">\uD83D\uDCC5 ' + escapeHtml(b.date || b.bookingDate || '') + ' at ' + escapeHtml(b.time || b.bookingTime || '') + '</span></div>';
+    function loadMyBookings() {
+        return memberReady.then(function(member) {
+            if (!member) return;
+            return API.bookings.byMember(member.id).then(function(r) {
+                var bookings = normalizeList(r);
+                document.getElementById('statBookings').textContent = bookings.length;
+                var upcoming = bookings.filter(function(b) { return b.status === 'confirmed' || b.status === 'pending' || b.status === 'new'; }).slice(0, 5);
+                var el = document.getElementById('bookingsList');
+                if (upcoming.length === 0) { el.innerHTML = '<p class="text-muted text-sm" style="padding:20px 0;text-align:center">No upcoming sessions</p>'; return; }
+                var h = '';
+                upcoming.forEach(function(b) {
+                    h += '<div style="padding:10px 0;border-bottom:1px solid var(--gray-100)"><strong style="font-size:0.9rem">' + escapeHtml(b.serviceType) + '</strong><br><span class="text-muted text-sm">\uD83D\uDCC5 ' + escapeHtml(b.date) + ' at ' + escapeHtml(b.time || '-') + '</span></div>';
+                });
+                el.innerHTML = h;
+            }).catch(function() { document.getElementById('bookingsList').innerHTML = '<p class="text-muted text-sm" style="padding:20px 0;text-align:center">Unable to load</p>'; });
         });
-        el.innerHTML = h;
-    }).catch(function() { document.getElementById('bookingsList').innerHTML = '<p class="text-muted text-sm" style="padding:20px 0;text-align:center">Unable to load</p>'; });
+    }
+    loadMyBookings();
+    startAutoRefresh(loadMyBookings, 60000);
 
-    API.cases.getAll({ memberId: memberId }).then(function(r) {
-        var cases = (r && r.data) ? (Array.isArray(r.data) ? r.data : r.data.cases || []) : [];
-        var active = cases.filter(function(c) { return c.status === 'active'; });
-        document.getElementById('statCases').textContent = active.length;
-        var el = document.getElementById('casesList');
-        if (cases.length === 0) { el.innerHTML = '<div class="empty-state"><div class="empty-icon">\uD83D\uDCA1</div><h3>No Active Cases</h3><p>Book a session to get started.</p><a href="/pages/booking.html" class="btn btn-primary btn-sm">Book a Session</a></div>'; return; }
-        var h = '';
-        cases.forEach(function(c) {
-            h += '<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--gray-100)"><div><strong>' + escapeHtml(c.type || 'Counseling') + '</strong><br><span class="text-muted text-sm">Case #' + escapeHtml(String(c.id).substring(0,8)) + '</span></div><div>' + getStatusBadge(c.status) + '</div></div>';
+    function loadMyCases() {
+        return memberReady.then(function(member) {
+            if (!member) return;
+            return API.cases.getAll({ member_id: member.id }).then(function(r) {
+                var cases = (r && r.data) ? (Array.isArray(r.data) ? r.data : r.data.cases || []) : [];
+                var active = cases.filter(function(c) { return c.status === 'active' || c.status === 'open' || c.status === 'in_progress'; });
+                document.getElementById('statCases').textContent = active.length;
+                var el = document.getElementById('casesList');
+                if (cases.length === 0) { el.innerHTML = '<div class="empty-state"><div class="empty-icon">\uD83D\uDCA1</div><h3>No Active Cases</h3><p>Book a session to get started.</p><a href="/pages/booking.html" class="btn btn-primary btn-sm">Book a Session</a></div>'; return; }
+                var h = '';
+                cases.forEach(function(c) {
+                    h += '<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--gray-100)"><div><strong>' + escapeHtml(c.title || c.category || 'Counseling') + '</strong><br><span class="text-muted text-sm">Case #' + escapeHtml(c.case_id || String(c.id)) + '</span></div><div>' + getStatusBadge(c.status) + '</div></div>';
+                });
+                el.innerHTML = h;
+            }).catch(function() { document.getElementById('casesList').innerHTML = '<p class="text-muted text-sm" style="padding:20px 0;text-align:center">Unable to load</p>'; });
         });
-        el.innerHTML = h;
-    }).catch(function() { document.getElementById('casesList').innerHTML = '<p class="text-muted text-sm" style="padding:20px 0;text-align:center">Unable to load</p>'; });
+    }
+    loadMyCases();
+
+    API.prayer.getAll({}).then(function(r) {
+        var prayers = (r && r.data) ? (Array.isArray(r.data) ? r.data : r.data.prayers || []) : [];
+        var mine = memberId ? prayers.filter(function(p) { return p.member_id === memberId; }) : [];
+        document.getElementById('statPrayers').textContent = mine.length;
+        var el = document.getElementById('prayerList');
+        if (!el) return;
+        if (mine.length === 0) { el.innerHTML = '<p class="text-muted text-sm" style="padding:12px 0;text-align:center">No prayer requests</p>'; return; }
+        el.innerHTML = mine.slice(0, 4).map(function(p) {
+            return '<div style="padding:8px 0;border-bottom:1px solid var(--gray-100)"><strong class="text-sm">' + escapeHtml(p.category || 'Prayer Request') + '</strong><br><span class="text-xs text-muted">' + escapeHtml((p.text || p.notes || '').slice(0, 60)) + '</span></div>';
+        }).join('');
+    }).catch(function() {});
 
     API.prayer.getAll({ memberId: memberId }).then(function(r) {
         var prayers = (r && r.data) ? (Array.isArray(r.data) ? r.data : r.data.prayers || []) : [];

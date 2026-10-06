@@ -423,6 +423,30 @@ CREATE TABLE IF NOT EXISTS submissions (
   updated_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS donations (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  reference TEXT UNIQUE NOT NULL,
+  member_id INTEGER,
+  donor_name TEXT NOT NULL,
+  donor_email TEXT,
+  donor_phone TEXT,
+  category TEXT NOT NULL,
+  amount REAL NOT NULL,
+  method TEXT NOT NULL,
+  currency TEXT DEFAULT 'NGN',
+  reference_note TEXT,
+  notes TEXT,
+  status TEXT DEFAULT 'recorded',
+  pledged INTEGER DEFAULT 0,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE SET NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_donations_member ON donations(member_id);
+CREATE INDEX IF NOT EXISTS idx_donations_status ON donations(status);
+CREATE INDEX IF NOT EXISTS idx_donations_created ON donations(created_at);
+
 CREATE INDEX IF NOT EXISTS idx_members_user ON members(user_id);
 CREATE INDEX IF NOT EXISTS idx_members_status ON members(membership_status);
 CREATE INDEX IF NOT EXISTS idx_staff_user ON staff(user_id);

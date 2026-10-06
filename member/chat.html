@@ -112,7 +112,12 @@
     }
 
     renderChatApp();
-    API.chat.byMember(user.memberId || user.id).then(function(r) {
+    getCurrentMember().then(function(member) {
+        if (!member) {
+            document.getElementById('chatList').innerHTML = '<div class="empty-state" style="padding:40px 16px"><p>No member profile found. Please contact the administrator.</p></div>';
+            return;
+        }
+        return API.chat.byMember(member.id).then(function(r) {
         myChats = (r && r.data) ? (Array.isArray(r.data) ? r.data : r.data.conversations || []) : [];
         if (myChats.length > 0) {
             activeChatId = myChats[0].id;
@@ -120,7 +125,8 @@
         } else {
             renderChatApp();
         }
-    }).catch(function() { myChats = []; renderChatApp(); });
+        }).catch(function() { myChats = []; renderChatApp(); });
+    });
 
     function loadAllMessages() {
         var promises = myChats.map(function(c) {

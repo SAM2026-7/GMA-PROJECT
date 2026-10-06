@@ -52,6 +52,65 @@
             </div>
         </section>
     </div>
+    <div id="pledgeSection">
+        <section class="section section-alt">
+            <div class="container">
+                <div class="card" style="max-width:720px;margin:0 auto">
+                    <div class="card-header">Record Your Giving</div>
+                    <div class="card-body">
+                        <p class="text-muted text-sm" style="margin-bottom:20px">After transferring, record it here so the finance team can reconcile it. You will receive a reference number.</p>
+                        <form id="givingForm">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="givingName">Full Name</label>
+                                    <input type="text" id="givingName" class="form-control" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="givingEmail">Email Address</label>
+                                    <input type="email" id="givingEmail" class="form-control">
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="givingAmount">Amount (&#8358;)</label>
+                                    <input type="number" id="givingAmount" class="form-control" min="1" step="0.01" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="givingCategory">Category</label>
+                                    <select id="givingCategory" class="form-control" required>
+                                        <option value="">Select category</option>
+                                        <option value="Tithe">Tithe</option>
+                                        <option value="Offering">Offering</option>
+                                        <option value="Missions">Missions</option>
+                                        <option value="Building Projects">Building Projects</option>
+                                        <option value="Special Donations">Special Donations</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="givingMethod">Payment Method</label>
+                                    <select id="givingMethod" class="form-control" required>
+                                        <option value="">Select method</option>
+                                        <option value="Bank Transfer">Bank Transfer</option>
+                                        <option value="Cash">Cash</option>
+                                        <option value="POS">POS</option>
+                                        <option value="Mobile Money">Mobile Money</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="givingRef">Transfer Reference</label>
+                                    <input type="text" id="givingRef" class="form-control" placeholder="Optional">
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-primary btn-block" id="givingSubmitBtn">Submit Giving Record</button>
+                        </form>
+                        <div id="givingResult" style="display:none;margin-top:20px"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
     <div id="footerContainer"></div>
     <script src="../js/app.js"></script>
     <script src="../js/components.js"></script>
@@ -92,10 +151,10 @@
         var totalAll = 0, monthlyTotal = 0, annualTotal = 0;
         var now = new Date();
         history.forEach(function(g) {
-            totalAll += (g.amount || 0);
-            var gd = new Date(g.date || g.created_at);
-            if (gd.getMonth() === now.getMonth() && gd.getFullYear() === now.getFullYear()) monthlyTotal += (g.amount || 0);
-            if (gd.getFullYear() === now.getFullYear()) annualTotal += (g.amount || 0);
+            totalAll += Number(g.amount || 0);
+            var gd = new Date(g.createdAt || g.created_at);
+            if (gd.getMonth() === now.getMonth() && gd.getFullYear() === now.getFullYear()) monthlyTotal += Number(g.amount || 0);
+            if (gd.getFullYear() === now.getFullYear()) annualTotal += Number(g.amount || 0);
         });
         document.getElementById('givingSummary').innerHTML =
             '<div class="card"><div class="card-body text-center"><p class="text-sm text-muted mb-1">Total Giving</p><p style="font-size:1.6rem;font-weight:800;color:var(--royal-deep)">' + formatCurrency(totalAll) + '</p></div></div>' +
@@ -103,16 +162,64 @@
             '<div class="card"><div class="card-body text-center"><p class="text-sm text-muted mb-1">This Year</p><p style="font-size:1.6rem;font-weight:800;color:var(--royal-deep)">' + formatCurrency(annualTotal) + '</p></div></div>';
         var tbody = document.getElementById('givingTableBody');
         history.forEach(function(g) {
-            var status = g.status || 'completed';
-            var badge = status === 'completed' || status === 'confirmed' ? 'badge-success' : status === 'pending' ? 'badge-warning' : 'badge-secondary';
-            tbody.innerHTML += '<tr><td>' + escapeHtml((g.date || g.created_at || '').substring(0, 10)) + '</td>' +
+            var status = g.status || 'recorded';
+            var badge = status === 'recorded' || status === 'confirmed' ? 'badge-success' : status === 'pledged' ? 'badge-warning' : 'badge-info';
+            tbody.innerHTML += '<tr><td>' + escapeHtml((g.createdAt || g.created_at || '').substring(0, 10)) + '</td>' +
                 '<td><span class="badge badge-primary">' + escapeHtml(g.category || '') + '</span></td>' +
                 '<td>' + formatCurrency(g.amount || 0) + '</td>' +
                 '<td>' + escapeHtml(g.method || '') + '</td>' +
-                '<td>' + escapeHtml(g.reference || '') + '</td>' +
+                '<td>' + escapeHtml(g.referenceRef || g.reference_note || '') + '</td>' +
                 '<td><span class="badge ' + badge + '">' + escapeHtml(status) + '</span></td></tr>';
         });
     }
+
+    function loadMyGiving() {
+        if (!isLoggedIn()) return Promise.resolve();
+        return API.donations.getAll({ limit: 100 }).then(function(r) {
+            renderMemberGiving(normalizeDonations(r));
+        }).catch(function() {});
+    }
+
+    document.getElementById('givingForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        var btn = document.getElementById('givingSubmitBtn');
+        var amount = parseFloat(document.getElementById('givingAmount').value);
+        var name = document.getElementById('givingName').value.trim();
+        var category = document.getElementById('givingCategory').value;
+        var method = document.getElementById('givingMethod').value;
+        if (!name || !amount || amount <= 0 || !category || !method) {
+            showToast('Please fill in all required fields.', 'error');
+            return;
+        }
+        btn.textContent = 'Submitting...';
+        btn.disabled = true;
+        API.donations.create({
+            donorName: name,
+            donorEmail: document.getElementById('givingEmail').value.trim(),
+            amount: amount,
+            category: category,
+            method: method,
+            reference: document.getElementById('givingRef').value.trim()
+        }).then(function(r) {
+            var ref = (r && r.data) ? r.data.reference : '';
+            var result = document.getElementById('givingResult');
+            result.style.display = 'block';
+            result.innerHTML = '<div class="alert alert-success"><div><strong>Giving recorded</strong><br>Reference: <strong>' + escapeHtml(ref) + '</strong><br><span class="text-sm">Our finance team will verify this against the transfer.</span></div></div>';
+            document.getElementById('givingForm').reset();
+            btn.textContent = 'Submit Another Record';
+            btn.disabled = false;
+            var signedIn = getUser();
+            if (signedIn) {
+                document.getElementById('givingName').value = signedIn.name || '';
+                document.getElementById('givingEmail').value = signedIn.email || '';
+            }
+            loadMyGiving();
+        }).catch(function(err) {
+            showToast('Could not record giving: ' + (err && err.message ? err.message : 'request failed'), 'error');
+            btn.textContent = 'Submit Giving Record';
+            btn.disabled = false;
+        });
+    });
 
     API.siteSettings.get().then(function(r) {
         siteSettings = (r && r.data) ? r.data : {};
@@ -125,11 +232,10 @@
 
     var user = getUser();
     if (user) {
-        API.submissions.getAll({ type: 'giving', memberId: user.memberId || user.id }).then(function(r) {
-            var history = (r && r.data) ? (Array.isArray(r.data) ? r.data : r.data.submissions || []) : [];
-            renderMemberGiving(history);
-        }).catch(function() {});
+        document.getElementById('givingName').value = user.name || '';
+        document.getElementById('givingEmail').value = user.email || '';
     }
+    loadMyGiving();
     </script>
 </body>
 </html>

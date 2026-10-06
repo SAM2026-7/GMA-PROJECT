@@ -95,6 +95,72 @@ function getInitials(name) {
     return name.split(' ').map(function(w) { return w.charAt(0); }).join('').toUpperCase().substring(0, 2);
 }
 
+function normalizeBooking(b) {
+    if (!b) return b;
+    b.bookingRef = b.bookingRef || b.booking_id || (b.id ? String(b.id) : '');
+    b.memberName = b.memberName || b.member_name || b.visitor_name || b.name || 'Guest';
+    b.email = b.email || b.visitor_email || '';
+    b.phone = b.phone || b.visitor_phone || '';
+    b.serviceType = b.serviceType || b.service_type || b.service || '';
+    b.sessionType = b.sessionType || b.session_type || b.type || '';
+    b.date = b.date || b.preferred_date || b.bookingDate || '';
+    b.time = b.time || b.preferred_time || b.bookingTime || '';
+    b.meetingType = b.meetingType || b.meeting_type || '';
+    b.preferredContact = b.preferredContact || b.preferred_contact || '';
+    b.reason = b.reason || b.notes || b.description || '';
+    b.assignedTo = b.assignedTo || b.assigned_to || null;
+    b.staffName = b.staffName || b.staff_code || '';
+    b.createdAt = b.createdAt || b.created_at || null;
+    return b;
+}
+
+function normalizeList(result) {
+    if (!result) return [];
+    var list = Array.isArray(result) ? result : (result.data || []);
+    if (!Array.isArray(list)) return [];
+    return list.map(normalizeBooking);
+}
+
+function normalizeDonation(d) {
+    if (!d) return d;
+    d.referenceRef = d.referenceRef || d.reference || (d.id ? String(d.id) : '');
+    d.donorName = d.donorName || d.donor_name || '';
+    d.donorEmail = d.donorEmail || d.donor_email || '';
+    d.donorPhone = d.donorPhone || d.donor_phone || '';
+    d.memberCode = d.memberCode || d.member_code || '';
+    d.referenceNote = d.referenceNote || d.reference_note || '';
+    d.createdAt = d.createdAt || d.created_at || null;
+    return d;
+}
+
+function normalizeDonations(result) {
+    if (!result) return [];
+    var list = Array.isArray(result) ? result : (result.data || []);
+    if (!Array.isArray(list)) return [];
+    return list.map(normalizeDonation);
+}
+
+function startAutoRefresh(fn, intervalMs) {
+    fn();
+    var id = setInterval(fn, intervalMs || 30000);
+    window.addEventListener('beforeunload', function() { clearInterval(id); });
+    document.addEventListener('visibilitychange', function() {
+        if (document.hidden) clearInterval(id);
+        else { fn(); id = setInterval(fn, intervalMs || 30000); }
+    });
+    return id;
+}
+
+var currentMemberPromise = null;
+function getCurrentMember() {
+    if (!isLoggedIn()) return Promise.resolve(null);
+    if (currentMemberPromise) return currentMemberPromise;
+    currentMemberPromise = API.members.getMe()
+        .then(function(r) { return (r && r.data) ? r.data : null; })
+        .catch(function() { return null; });
+    return currentMemberPromise;
+}
+
 function setupNavigation() {
     var toggle = document.getElementById('navToggle');
     var links = document.getElementById('navLinks');
@@ -104,17 +170,44 @@ function setupNavigation() {
     }
 }
 
+function logout() {
+    if (!confirm('Sign out of GMA City Complex?')) return;
+    var user = getUser();
+    if (user && isLoggedIn()) {
+        try {
+            fetch(API_BASE + '/api/audit', {
+                method: 'POST',
+                keepalive: true,
+                headers: Object.assign({ 'Content-Type': 'application/json' }, getToken() ? { Authorization: 'Bearer ' + getToken() } : {}),
+                body: JSON.stringify({
+                    action: 'logout',
+                    entity_type: 'user',
+                    entity_id: user.id || null,
+                    details: (user.name || user.email || 'user') + ' signed out'
+                })
+            }).catch(function() {});
+        } catch {}
+    }
+    removeToken();
+    window.location.href = '/pages/login.html';
+}
+
+var STAFF_ROLES = ['super_admin', 'admin', 'pastor', 'counselor', 'prayer_coordinator', 'healing_minister', 'followup_officer', 'branch_admin', 'analytics_officer'];
+function isStaff() { return STAFF_ROLES.indexOf(getRole()) >= 0; }
+
 function requireAuth(role) {
     if (!isLoggedIn()) { window.location.href = '/pages/login.html'; return false; }
     var userRole = getRole();
-    var allowed = ['admin', 'super_admin'];
-    if (role && userRole !== role && !allowed.includes(userRole)) { window.location.href = '/index.html'; return false; }
+    if (!role) return true;
+    if (role === 'staff') { if (!isStaff()) { window.location.href = '/index.html'; return false; } return true; }
+    if (role === 'admin') { if (!isStaff()) { window.location.href = '/index.html'; return false; } return true; }
+    if (userRole !== role) { window.location.href = isStaff() ? '/admin/dashboard.html' : '/member/dashboard.html'; return false; }
     return true;
 }
 
 function requireMember() { return requireAuth('member'); }
-function requireAdmin() { return requireAuth('admin'); }
-function requirePastor() { return requireAuth('pastor'); }
+function requireAdmin() { return requireAuth('staff'); }
+function requirePastor() { return requireAuth('staff'); }
 
 function logFrontendAction(action, entityType, entityId, details) {
     if (!isLoggedIn()) return;

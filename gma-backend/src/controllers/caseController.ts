@@ -11,6 +11,7 @@ import {
   escalateCase,
 } from '../services/caseService';
 import { AuthRequest } from '../types/index';
+import { isStaffUser, resolveMemberId } from '../middleware/auth';
 
 export async function createCaseHandler(req: AuthRequest, res: Response) {
   try {
@@ -29,6 +30,15 @@ export async function getAllCasesHandler(req: AuthRequest, res: Response) {
   try {
     const page = Math.max(1, parseInt(req.query.page as string) || 1);
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 20));
+    const staff = isStaffUser(req);
+    let memberId = req.query.member_id ? parseInt(req.query.member_id as string) : undefined;
+    if (!staff) {
+      const ownId = await resolveMemberId(req);
+      if (ownId === null) {
+        return res.status(200).json({ success: true, data: [], total: 0, page, limit, totalPages: 0 });
+      }
+      memberId = ownId;
+    }
     const result = await getAllCases({
       page,
       limit,
@@ -36,7 +46,7 @@ export async function getAllCasesHandler(req: AuthRequest, res: Response) {
       priority: req.query.priority as string | undefined,
       status: req.query.status as string | undefined,
       assigned_counselor: req.query.assigned_counselor ? parseInt(req.query.assigned_counselor as string) : undefined,
-      member_id: req.query.member_id ? parseInt(req.query.member_id as string) : undefined,
+      member_id: memberId,
       search: req.query.search as string | undefined,
     });
     return res.status(200).json({ success: true, ...result });
@@ -51,6 +61,12 @@ export async function getCaseHandler(req: AuthRequest, res: Response) {
     const caseRecord = await getCaseById(id);
     if (!caseRecord) {
       return res.status(404).json({ error: 'Case not found' });
+    }
+    if (!isStaffUser(req)) {
+      const ownId = await resolveMemberId(req);
+      if (ownId === null || caseRecord.member_id !== ownId) {
+        return res.status(403).json({ error: 'You can only view your own cases' });
+      }
     }
     return res.status(200).json({ success: true, data: caseRecord });
   } catch (error) {

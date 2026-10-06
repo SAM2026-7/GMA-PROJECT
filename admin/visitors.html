@@ -124,20 +124,14 @@
     };
 
     render();
-    API.submissions.getAll({ type: 'visitor' }).then(function(r) {
+    API.submissions.getAll({ type: 'visitor', limit: 100 }).then(function(r) {
         visitors = (r && r.data) ? (Array.isArray(r.data) ? r.data : r.data.submissions || []) : [];
-        if (visitors.length === 0) {
-            visitors = [
-                { id: 'VIS-001', name: 'Chioma Eze', phone: '08034567890', firstVisit: '2026-08-03', lastVisit: '2026-08-24', status: 'Returning', notes: 'Attended Sunday service three times. Interested in joining a cell group.' },
-                { id: 'VIS-002', name: 'Tunde Bakare', phone: '09012345678', firstVisit: '2026-08-10', lastVisit: '2026-08-10', status: 'New', notes: 'Came for the healing service. Requested prayer for back pain.' },
-                { id: 'VIS-003', name: 'Amina Yusuf', phone: '07098765432', firstVisit: '2026-07-15', lastVisit: '2026-08-20', status: 'Converted', notes: 'Regular attendee since July. Joined as member.' },
-                { id: 'VIS-004', name: 'Emeka Nwankwo', phone: '08145678901', firstVisit: '2026-08-17', lastVisit: '2026-08-17', status: 'New', notes: 'First-time visitor. Enjoyed the worship.' },
-                { id: 'VIS-005', name: 'Bukola Adekunle', phone: '09067890123', firstVisit: '2026-06-20', lastVisit: '2026-08-17', status: 'Returning', notes: "Visits bi-weekly. Interested in the women's ministry." },
-                { id: 'VIS-006', name: 'Ibrahim Mohammed', phone: '08056789012', firstVisit: '2026-08-24', lastVisit: '2026-08-24', status: 'New', notes: 'Walked in during midweek service. Very engaged during the sermon.' }
-            ];
-        }
         render();
-    }).catch(function() { render(); });
+    }).catch(function(err) {
+        visitors = [];
+        render();
+        showToast('Could not load visitors: ' + (err && err.message ? err.message : 'request failed'), 'error');
+    });
     </script>
 </body>
 </html>

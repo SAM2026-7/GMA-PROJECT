@@ -63,8 +63,15 @@ export async function getUnreadCount(userId: number): Promise<number> {
   return (result[0] as any).count || 0;
 }
 
-export async function markAsRead(id: number): Promise<boolean> {
+export async function markAsRead(id: number, userId?: number): Promise<boolean> {
   const now = new Date().toISOString();
+  if (userId) {
+    const result = await query(
+      'UPDATE notifications SET is_read = 1, read_at = ? WHERE id = ? AND user_id = ?',
+      [now, id, userId]
+    );
+    return (result as any).changes > 0;
+  }
   await query(
     'UPDATE notifications SET is_read = 1, read_at = ? WHERE id = ?',
     [now, id]

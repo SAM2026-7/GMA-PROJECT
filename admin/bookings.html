@@ -15,47 +15,55 @@
     <script>
     if (!requireAuth('admin')) throw new Error('Not authorized');
     var allBookings = [];
+    var serverTotal = 0;
     var activeTab = 'All';
+    var searchTerm = '';
     var statusTabs = ['All', 'New', 'Pending', 'Confirmed', 'Completed', 'Cancelled'];
 
+    function statusKey(b) { return (b.status || 'pending').toLowerCase(); }
     function capitalizeStatus(s) { return (s || '').charAt(0).toUpperCase() + (s || '').slice(1); }
-    function getFilteredBookings() { if (activeTab === 'All') return allBookings; return allBookings.filter(function(b) { return capitalizeStatus(b.status) === activeTab; }); }
-    function getCountByStatus(s) { return allBookings.filter(function(b) { return b.status === s; }).length; }
+    function getFilteredBookings() {
+        var list = allBookings;
+        if (activeTab === 'New') list = list.filter(function(b) { return statusKey(b) === 'new' || statusKey(b) === 'pending'; });
+        else if (activeTab !== 'All') list = list.filter(function(b) { return statusKey(b) === activeTab.toLowerCase(); });
+        if (searchTerm) {
+            var q = searchTerm.toLowerCase();
+            list = list.filter(function(b) {
+                return [b.bookingRef, b.memberName, b.email, b.phone, b.serviceType, b.sessionType].join(' ').toLowerCase().indexOf(q) >= 0;
+            });
+        }
+        return list;
+    }
+    function getCountByStatus(s) { return allBookings.filter(function(b) { return statusKey(b) === s; }).length; }
 
     function renderBookingCard(b) {
-        var name = b.memberName || b.member_name || 'Member';
-        var service = b.serviceType || b.service || '';
-        var sessionType = b.sessionType || b.type || '';
-        var date = b.date || b.bookingDate || '';
-        var time = b.time || b.bookingTime || '';
-        var meetingType = b.meetingType || '';
-        var reason = b.reason || '';
-        var assignedTo = b.assignedTo || b.assigned_to || '';
-        var email = b.visitor_email || b.email || '';
         return '<div class="card" style="margin-bottom:16px"><div class="card-body">' +
-            '<div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:12px"><div><strong>Booking #' + escapeHtml(String(b.id).substring(0, 8)) + '</strong></div>' + getStatusBadge(b.status) + '</div>' +
+            '<div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:12px;gap:12px"><div><strong>' + escapeHtml(b.bookingRef) + '</strong><br><span class="text-xs text-muted">Received ' + escapeHtml(b.createdAt ? formatDateTime(b.createdAt) : 'recently') + '</span></div>' + getStatusBadge(b.status) + '</div>' +
             '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 24px;margin-bottom:12px">' +
-            '<p><strong>Member:</strong> ' + escapeHtml(name) + '</p>' +
-            '<p><strong>Service:</strong> ' + escapeHtml(service) + '</p>' +
-            '<p><strong>Type:</strong> ' + escapeHtml(sessionType) + '</p>' +
-            '<p><strong>Date:</strong> ' + escapeHtml(date) + '</p>' +
-            '<p><strong>Time:</strong> ' + escapeHtml(time) + '</p>' +
-            '<p><strong>Meeting:</strong> ' + escapeHtml(meetingType) + '</p>' +
-            (reason ? '<p style="grid-column:1/-1"><strong>Reason:</strong> ' + escapeHtml(reason) + '</p>' : '') +
+            '<p><strong>Name:</strong> ' + escapeHtml(b.memberName) + '</p>' +
+            '<p><strong>Service:</strong> ' + escapeHtml(b.serviceType) + '</p>' +
+            '<p><strong>Phone:</strong> ' + escapeHtml(b.phone || '-') + '</p>' +
+            '<p><strong>Type:</strong> ' + escapeHtml(b.sessionType) + '</p>' +
+            '<p><strong>Date:</strong> ' + escapeHtml(b.date) + '</p>' +
+            '<p><strong>Email:</strong> ' + escapeHtml(b.email || '-') + '</p>' +
+            '<p><strong>Time:</strong> ' + escapeHtml(b.time || '-') + '</p>' +
+            '<p><strong>Meeting:</strong> ' + escapeHtml(b.meetingType) + '</p>' +
+            '<p><strong>Contact via:</strong> ' + escapeHtml(b.preferredContact) + '</p>' +
+            (b.reason ? '<p style="grid-column:1/-1"><strong>Reason:</strong> ' + escapeHtml(b.reason) + '</p>' : '') +
             '</div>' +
             '<div style="border-top:1px solid var(--gray-100);padding-top:12px;display:flex;gap:8px;flex-wrap:wrap">' +
-            '<button class="btn btn-sm btn-primary" onclick="updateBookingStatus(' + b.id + ',\'confirmed\')">Confirm</button>' +
-            '<button class="btn btn-sm" style="background:var(--gray-100);color:var(--gray-700)" onclick="updateBookingStatus(' + b.id + ',\'completed\')">Complete</button>' +
-            '<button class="btn btn-sm" style="background:var(--danger);color:#fff" onclick="updateBookingStatus(' + b.id + ',\'cancelled\')">Cancel</button>' +
-            (email ? '<button class="btn btn-sm btn-primary" style="background:var(--royal-blue);color:#fff" onclick="openEmailModal(' + b.id + ',\'' + escapeHtml(email) + '\',\'' + escapeHtml(name) + '\')">Reply via Email</button>' : '') +
+            (statusKey(b) !== 'confirmed' ? '<button class="btn btn-sm btn-primary" onclick="updateBookingStatus(' + b.id + ',\'confirmed\')">Confirm</button>' : '') +
+            (statusKey(b) !== 'completed' ? '<button class="btn btn-sm" style="background:var(--gray-100);color:var(--gray-700)" onclick="updateBookingStatus(' + b.id + ',\'completed\')">Complete</button>' : '') +
+            (statusKey(b) !== 'cancelled' ? '<button class="btn btn-sm" style="background:var(--danger);color:#fff" onclick="updateBookingStatus(' + b.id + ',\'cancelled\')">Cancel</button>' : '') +
+            (b.email ? '<button class="btn btn-sm btn-primary" style="background:var(--royal-blue);color:#fff" onclick="openEmailModal(' + b.id + ',\'' + escapeHtml(b.email) + '\',\'' + escapeHtml(b.memberName) + '\')">Reply via Email</button>' : '') +
             '</div></div></div>';
     }
 
     function render() {
         var filtered = getFilteredBookings();
-        var total = allBookings.length;
-        var content = '<div class="content-header"><div><h1 class="page-title">Bookings <span class="badge">' + total + '</span></h1></div><div><button class="btn btn-primary btn-sm" onclick="exportCSV()">Export CSV</button></div></div>';
-        content += '<div class="stats-grid"><div class="stat-card"><div class="stat-info"><span>Total</span><strong>' + total + '</strong></div></div><div class="stat-card"><div class="stat-info"><span>Pending</span><strong>' + (getCountByStatus('new') + getCountByStatus('pending')) + '</strong></div></div><div class="stat-card"><div class="stat-info"><span>Confirmed</span><strong>' + getCountByStatus('confirmed') + '</strong></div></div><div class="stat-card"><div class="stat-info"><span>Completed</span><strong>' + getCountByStatus('completed') + '</strong></div></div></div>';
+        var total = serverTotal;
+        var content = '<div class="content-header"><div><h1 class="page-title">Bookings <span class="badge">' + total + '</span></h1></div><div style="display:flex;gap:8px;flex-wrap:wrap"><input id="bookingSearch" class="form-control" style="max-width:240px" placeholder="Search name, ID, service..." value="' + escapeHtml(searchTerm) + '"><button class="btn btn-primary btn-sm" onclick="window._searchBookings()">Search</button><button class="btn btn-sm" style="background:var(--gray-100);color:var(--gray-700)" onclick="window._refreshBookings()">Refresh</button><button class="btn btn-primary btn-sm" onclick="exportCSV()">Export CSV</button></div></div>';
+        content += '<div class="stats-grid"><div class="stat-card"><div class="stat-info"><span>Total</span><strong>' + total + '</strong></div></div><div class="stat-card"><div class="stat-info"><span>Awaiting Action</span><strong>' + (getCountByStatus('new') + getCountByStatus('pending')) + '</strong></div></div><div class="stat-card"><div class="stat-info"><span>Confirmed</span><strong>' + getCountByStatus('confirmed') + '</strong></div></div><div class="stat-card"><div class="stat-info"><span>Completed</span><strong>' + getCountByStatus('completed') + '</strong></div></div></div>';
         content += '<div class="tabs">';
         statusTabs.forEach(function(tab) { content += '<button class="tab ' + (activeTab === tab ? 'active' : '') + '" onclick="window._filterTab(\'' + tab + '\')">' + tab + '</button>'; });
         content += '</div><div style="margin-top:16px">';
@@ -64,30 +72,55 @@
         content += '</div>';
         document.getElementById('app').innerHTML = renderAdminLayout('bookings', content);
         document.getElementById('sidebarToggle').addEventListener('click', function() { document.getElementById('sidebar').classList.toggle('open'); });
+        var input = document.getElementById('bookingSearch');
+        if (input && searchTerm) { input.focus(); input.setSelectionRange(searchTerm.length, searchTerm.length); }
     }
 
     window._filterTab = function(tab) { activeTab = tab; render(); };
+    window._searchBookings = function() {
+        var input = document.getElementById('bookingSearch');
+        searchTerm = input ? input.value.trim() : '';
+        render();
+    };
+    window._refreshBookings = function() { loadBookings().then(function() { showToast('Bookings refreshed', 'success'); }); };
     window.updateBookingStatus = function(id, status) {
-        API.bookings.update(id, { status: status }).then(function() {
-            var b = allBookings.find(function(b) { return b.id === id; });
-            if (b) b.status = status;
+        API.bookings.update(id, { status: status }).then(function(r) {
+            var updated = (r && r.data) ? normalizeBooking(r.data) : null;
+            if (updated) {
+                var idx = allBookings.findIndex(function(b) { return b.id === id; });
+                if (idx >= 0) allBookings[idx] = updated;
+            }
             showToast('Booking updated to ' + capitalizeStatus(status), 'success');
             logFrontendAction('status_change', 'booking', id, 'Booking status changed to ' + status);
             render();
         }).catch(function() { showToast('Failed to update booking', 'error'); });
     };
     window.exportCSV = function() {
-        var rows = [['ID', 'Member', 'Service', 'Date', 'Time', 'Status']];
-        allBookings.forEach(function(b) { rows.push([b.id, b.memberName || '', b.serviceType || b.service || '', b.date || b.bookingDate || '', b.time || '', b.status || '']); });
-        var csv = rows.map(function(r) { return r.map(function(c) { return '"' + String(c).replace(/"/g, '""') + '"'; }).join(','); }).join('\n');
+        var rows = [['Booking ID', 'Name', 'Phone', 'Email', 'Service', 'Type', 'Date', 'Time', 'Meeting', 'Status', 'Received']];
+        getFilteredBookings().forEach(function(b) {
+            rows.push([b.bookingRef, b.memberName, b.phone, b.email, b.serviceType, b.sessionType, b.date, b.time, b.meetingType, b.status, b.createdAt]);
+        });
+        var csv = rows.map(function(r) { return r.map(function(c) { return '"' + String(c == null ? '' : c).replace(/"/g, '""') + '"'; }).join(','); }).join('\n');
         var blob = new Blob([csv], { type: 'text/csv' }); var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'bookings.csv'; a.click();
     };
 
-    render();
-    API.bookings.getAll({}).then(function(r) {
-        allBookings = (r && r.data) ? (Array.isArray(r.data) ? r.data : r.data.bookings || []) : [];
-        render();
-    }).catch(function() { allBookings = []; render(); });
+    function loadBookings() {
+        var params = { limit: 100 };
+        if (activeTab !== 'All' && activeTab !== 'New') params.status = activeTab.toLowerCase();
+        if (searchTerm) params.search = searchTerm;
+        return API.bookings.getAll(params).then(function(r) {
+            allBookings = normalizeList(r);
+            serverTotal = (r && typeof r.total === 'number') ? r.total : allBookings.length;
+            render();
+        }).catch(function(err) {
+            allBookings = [];
+            showToast('Could not load bookings: ' + (err && err.message ? err.message : 'request failed'), 'error');
+            render();
+        });
+    }
+
+    loadBookings();
+    startAutoRefresh(loadBookings, 30000);
 
     function openEmailModal(bookingId, recipientEmail, recipientName) {
         var modal = document.createElement('div');

@@ -41,6 +41,7 @@
         <div class="modal"><div class="modal-header"><h3>Share Your Testimony</h3><button class="modal-close" onclick="closeModal('shareModal')">&times;</button></div>
         <div class="modal-body">
             <div class="form-group"><label for="testimonyName">Your Name</label><input type="text" id="testimonyName" class="form-control" placeholder="Full name" required></div>
+            <div class="form-group"><label for="testimonyTitle">Title</label><input type="text" id="testimonyTitle" class="form-control" placeholder="A short title for your testimony" required></div>
             <div class="form-group"><label for="testimonyCategory">Category</label><select id="testimonyCategory" class="form-control" required><option value="">Select</option><option value="Healing">Healing</option><option value="Salvation">Salvation</option><option value="Family">Family</option><option value="Financial">Financial</option><option value="Career">Career</option><option value="Prayer Answered">Prayer Answered</option><option value="Spiritual Growth">Spiritual Growth</option></select></div>
             <div class="form-group"><label for="testimonyText">Your Testimony</label><textarea id="testimonyText" class="form-control" rows="5" placeholder="Share how God has worked in your life..." required></textarea></div>
             <div class="form-group"><label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer"><input type="checkbox" id="testimonyPermission" style="margin-top:4px" required><span>I give permission for this testimony to be shared publicly.</span></label></div>
@@ -81,6 +82,7 @@
 
     function openShareModal() {
         document.getElementById('testimonyName').value = '';
+        document.getElementById('testimonyTitle').value = '';
         document.getElementById('testimonyCategory').value = '';
         document.getElementById('testimonyText').value = '';
         document.getElementById('testimonyPermission').checked = false;
@@ -90,28 +92,27 @@
 
     function submitTestimony() {
         var name = document.getElementById('testimonyName').value.trim();
+        var title = document.getElementById('testimonyTitle').value.trim();
         var category = document.getElementById('testimonyCategory').value;
         var text = document.getElementById('testimonyText').value.trim();
         var permission = document.getElementById('testimonyPermission').checked;
-        if (!name || !category || !text) { showToast('Please fill in all fields.', 'error'); return; }
+        if (!name || !title || !category || !text) { showToast('Please fill in all fields.', 'error'); return; }
         if (!permission) { showToast('Please grant permission.', 'error'); return; }
-        API.testimonies.create({ name: name, authorName: name, category: category, text: text, content: text }).then(function() {
+        API.testimonies.create({ title: title, author_name: name, authorName: name, name: name, category: category, content: text, text: text }).then(function() {
             closeModal('shareModal');
             showToast('Thank you! Your testimony will be reviewed and published soon.', 'success');
         }).catch(function() {
-            closeModal('shareModal');
-            showToast('Thank you! Your testimony will be reviewed soon.', 'success');
+            showToast('Your testimony could not be submitted. Please try again.', 'error');
         });
     }
 
-    API.testimonies.getAll({}).then(function(r) {
+    API.testimonies.approved(1, 50).then(function(r) {
         allTestimonies = (r && r.data) ? (Array.isArray(r.data) ? r.data : r.data.testimonies || []) : [];
         renderTestimonies('all');
     }).catch(function() {
-        API.testimonies.approved(1, 50).then(function(r) {
-            allTestimonies = (r && r.data) ? (Array.isArray(r.data) ? r.data : r.data.testimonies || []) : [];
-            renderTestimonies('all');
-        }).catch(function() { allTestimonies = []; renderTestimonies('all'); });
+        showToast('Unable to load testimonies. Please refresh.', 'error');
+        allTestimonies = [];
+        renderTestimonies('all');
     });
     </script>
 </body>

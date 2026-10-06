@@ -39,11 +39,11 @@
         var totalAll = allGiving.reduce(function(s, g) { return s + (g.amount || 0); }, 0);
         var now = new Date();
         var monthlyTotal = allGiving.filter(function(g) {
-            var d = new Date(g.date || g.created_at);
+            var d = new Date(g.createdAt || g.created_at);
             return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
         }).reduce(function(s, g) { return s + (g.amount || 0); }, 0);
         var yearTotal = allGiving.filter(function(g) {
-            return new Date(g.date || g.created_at).getFullYear() === now.getFullYear();
+            return new Date(g.createdAt || g.created_at).getFullYear() === now.getFullYear();
         }).reduce(function(s, g) { return s + (g.amount || 0); }, 0);
         var avgGift = allGiving.length > 0 ? Math.round(totalAll / allGiving.length) : 0;
 
@@ -67,11 +67,11 @@
         } else {
             content += '<div class="card"><div class="card-body" style="overflow-x:auto"><table class="table"><thead><tr><th>Date</th><th>Category</th><th>Amount</th><th>Method</th><th>Reference</th><th>Status</th></tr></thead><tbody>';
             filtered.forEach(function(g) {
-                content += '<tr><td>' + escapeHtml(formatDate(g.date || g.created_at)) + '</td>' +
+                content += '<tr><td>' + escapeHtml(formatDate(g.createdAt || g.created_at)) + '</td>' +
                     '<td>' + escapeHtml(g.category || '') + '</td>' +
                     '<td><strong>' + formatCurrency(g.amount || 0) + '</strong></td>' +
                     '<td>' + escapeHtml(g.method || '') + '</td>' +
-                    '<td><span style="font-family:monospace;font-size:0.8rem">' + escapeHtml(g.reference || '') + '</span></td>' +
+                    '<td><span style="font-family:monospace;font-size:0.8rem">' + escapeHtml(g.referenceRef || '') + '</span></td>' +
                     '<td>' + getStatusBadge(g.status) + '</td></tr>';
             });
             content += '</tbody></table></div></div>';
@@ -86,7 +86,7 @@
         var filtered = getFilteredGiving();
         var csv = 'Date,Category,Amount,Method,Reference,Status\n';
         filtered.forEach(function(g) {
-            csv += (g.date || g.created_at || '') + ',' + (g.category || '') + ',' + (g.amount || 0) + ',' + (g.method || '') + ',' + (g.reference || '') + ',' + (g.status || '') + '\n';
+            csv += (g.createdAt || g.created_at || '') + ',' + (g.category || '') + ',' + (g.amount || 0) + ',' + (g.method || '') + ',' + (g.referenceRef || '') + ',' + (g.status || '') + '\n';
         });
         var blob = new Blob([csv], { type: 'text/csv' });
         var url = URL.createObjectURL(blob);
@@ -96,8 +96,8 @@
     };
 
     render();
-    API.submissions.getAll({ type: 'giving', memberId: user.memberId || user.id }).then(function(r) {
-        allGiving = (r && r.data) ? (Array.isArray(r.data) ? r.data : r.data.submissions || []) : [];
+    API.donations.getAll({ limit: 100 }).then(function(r) {
+        allGiving = normalizeDonations(r);
         render();
     }).catch(function() { allGiving = []; render(); });
     </script>

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { authMiddleware } from '../middleware/auth';
+import { authMiddleware, requireStaffOrAdmin } from '../middleware/auth';
 import {
   getDashboardStatsHandler,
   getMemberAnalyticsHandler,
@@ -13,7 +13,7 @@ import {
 
 export const analyticsRouter = Router();
 
-analyticsRouter.use(authMiddleware);
+analyticsRouter.use(authMiddleware, requireStaffOrAdmin);
 
 analyticsRouter.get('/dashboard', getDashboardStatsHandler);
 analyticsRouter.get('/members', getMemberAnalyticsHandler);

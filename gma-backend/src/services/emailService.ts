@@ -26,7 +26,7 @@ export function getTransporter() {
 export async function sendAutoResponse(data: {
   to: string;
   name: string;
-  type: 'booking' | 'prayer' | 'contact' | 'general';
+  type: 'booking' | 'prayer' | 'contact' | 'general' | 'giving';
   referenceId?: string;
 }) {
   const t = getTransporter();
@@ -37,6 +37,7 @@ export async function sendAutoResponse(data: {
     prayer: 'Prayer Request Received - GMA City Complex',
     contact: 'Message Received - GMA City Complex',
     general: 'Submission Received - GMA City Complex',
+    giving: 'Giving Record Received - GMA City Complex',
   };
 
   const messages = {
@@ -44,6 +45,7 @@ export async function sendAutoResponse(data: {
     prayer: `Dear ${data.name},\n\nYour prayer request has been received.\n\n"God is in control, we will get back to you shortly."\n\nOur prayer team will lift your needs before the Lord and contact you soon.\n\n"Do not be anxious about anything, but in every situation, by prayer and petition, with thanksgiving, present your requests to God." - Philippians 4:6\n\nGod bless,\nGMA City Complex Team`,
     contact: `Dear ${data.name},\n\nYour message has been received.\n\n"God is in control, we will get back to you shortly."\n\nOur team will respond within 24 to 48 hours.\n\nGod bless,\nGMA City Complex Team`,
     general: `Dear ${data.name},\n\nYour submission has been received.\n\n"God is in control, we will get back to you shortly."\n\nOur team will get back to you soon.\n\nGod bless,\nGMA City Complex Team`,
+    giving: `Dear ${data.name},\n\nThank you for your generous giving to GMA City Complex.\n\nYour reference is ${data.referenceId || 'pending'}.\n\nOur finance team will verify your record against the transfer and contact you if anything is needed.\n\n"Each one should give as he has decided in his heart, not reluctantly or under compulsion." - 2 Corinthians 9:7\n\nGod bless,\nGMA City Complex Team`,
   };
 
   const mailOptions = {

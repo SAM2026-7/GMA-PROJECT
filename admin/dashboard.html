@@ -35,7 +35,7 @@
         '<div class="card mb-3"><div class="card-header">Pastoral Care</div><div class="card-body" id="pastoralCare"><div class="text-center text-muted text-sm" style="padding:16px">Loading...</div></div></div>' +
         '<div class="card"><div class="card-header">Recent Bookings</div><div class="card-body" style="padding:0"><div class="table-wrap" id="recentBookings"><div class="text-center text-muted text-sm" style="padding:20px">Loading...</div></div></div></div></div>' +
         '<div>' +
-        '<div class="card mb-3"><div class="card-header">Quick Actions</div><div class="card-body"><div style="display:flex;flex-direction:column;gap:8px"><a href="/admin/bookings.html" class="btn btn-primary btn-sm" style="text-align:center">Manage Bookings</a><a href="/admin/prayer-requests.html" class="btn btn-primary btn-sm" style="text-align:center">Prayer Requests</a><a href="/admin/visitors.html" class="btn btn-primary btn-sm" style="text-align:center">Visitors</a><a href="/admin/sermons.html" class="btn btn-primary btn-sm" style="text-align:center">Sermons</a><a href="/admin/events.html" class="btn btn-primary btn-sm" style="text-align:center">Events</a><a href="/admin/settings.html" class="btn btn-primary btn-sm" style="text-align:center">Site Settings</a></div></div></div>' +
+        '<div class="card mb-3"><div class="card-header">Quick Actions</div><div class="card-body"><div style="display:flex;flex-direction:column;gap:8px"><a href="/admin/bookings.html" class="btn btn-primary btn-sm" style="text-align:center">Manage Bookings</a><a href="/admin/prayer-requests.html" class="btn btn-primary btn-sm" style="text-align:center">Prayer Requests</a><a href="/admin/visitors.html" class="btn btn-primary btn-sm" style="text-align:center">Visitors</a><a href="/admin/sermons.html" class="btn btn-primary btn-sm" style="text-align:center">Sermons</a><a href="/admin/events.html" class="btn btn-primary btn-sm" style="text-align:center">Events</a><a href="/admin/giving.html" class="btn btn-primary btn-sm" style="text-align:center">Giving Records</a><a href="/admin/settings.html" class="btn btn-primary btn-sm" style="text-align:center">Site Settings</a></div></div></div>' +
         '<div class="card mb-3"><div class="card-header">Quick Stats</div><div class="card-body" id="quickStats"><div class="text-center text-muted text-sm" style="padding:16px">Loading...</div></div></div>' +
         '<div class="card mb-3"><div class="card-header">Urgent Prayer Requests</div><div class="card-body" id="urgentPrayers"><div class="text-center text-muted text-sm" style="padding:16px">Loading...</div></div></div>' +
         '<div class="card"><div class="card-header">Recent Activity</div><div class="card-body" id="recentActivity"><div class="text-center text-muted text-sm" style="padding:16px">Loading...</div></div></div>' +
@@ -45,28 +45,44 @@
 
     document.getElementById('todayDate').textContent = new Date().toISOString().split('T')[0];
 
-    API.analytics.dashboard().then(function(r) {
-        var d = (r && r.data) ? r.data : {};
-        document.getElementById('statMembers').textContent = d.totalMembers || d.members || 0;
-        document.getElementById('statBookings').textContent = d.totalBookings || d.bookings || 0;
-        document.getElementById('statPrayers').textContent = d.totalPrayers || d.prayers || 0;
-        document.getElementById('statCases').textContent = d.activeCases || d.cases || 0;
-        document.getElementById('statTodayBookings').textContent = d.todayBookings || d.today_appointments || 0;
-        document.getElementById('statPending').textContent = d.pendingBookings || d.pending || 0;
-        document.getElementById('statOverdue').textContent = d.overdueFollowups || d.overdue_followups || 0;
-    }).catch(function() {});
+    function loadStats() {
+        return API.analytics.dashboard().then(function(r) {
+            var d = (r && r.data) ? r.data : {};
+            document.getElementById('statMembers').textContent = d.totalMembers || 0;
+            document.getElementById('statBookings').textContent = d.totalBookings || 0;
+            document.getElementById('statPrayers').textContent = d.totalPrayerRequests || 0;
+            document.getElementById('statCases').textContent = d.activeCases || 0;
+            document.getElementById('statTodayBookings').textContent = d.todayBookings || 0;
+            document.getElementById('statPending').textContent = d.pendingBookings || 0;
+            document.getElementById('statOverdue').textContent = d.overdueFollowups || 0;
+            return d;
+        }).catch(function() { return {}; });
+    }
 
-    API.bookings.getAll({ limit: 5 }).then(function(r) {
-        var bookings = (r && r.data) ? (Array.isArray(r.data) ? r.data : r.data.bookings || []) : [];
+    function renderRecentBookings(d) {
+        var bookings = (d && Array.isArray(d.recentBookings)) ? d.recentBookings.map(normalizeBooking) : [];
         var el = document.getElementById('recentBookings');
         if (bookings.length === 0) { el.innerHTML = '<p class="text-center text-muted text-sm" style="padding:20px">No bookings yet</p>'; return; }
         var h = '<table class="table"><thead><tr><th>ID</th><th>Name</th><th>Service</th><th>Date</th><th>Status</th></tr></thead><tbody>';
-        bookings.slice(0, 5).forEach(function(b) {
-            h += '<tr><td><strong>#' + escapeHtml(String(b.id).substring(0, 6)) + '</strong></td><td>' + escapeHtml(b.memberName || b.member_name || 'Member') + '</td><td>' + escapeHtml(b.serviceType || b.service || '') + '</td><td>' + escapeHtml(b.date || b.bookingDate || '') + '</td><td>' + getStatusBadge(b.status) + '</td></tr>';
+        bookings.forEach(function(b) {
+            h += '<tr><td><strong>' + escapeHtml(b.bookingRef) + '</strong></td><td>' + escapeHtml(b.memberName) + '</td><td>' + escapeHtml(b.serviceType) + '</td><td>' + escapeHtml(b.date) + '</td><td>' + getStatusBadge(b.status) + '</td></tr>';
         });
-        h += '</tbody></table>';
+        h += '</tbody></table><div style="text-align:center;padding:12px 0 0"><a href="/admin/bookings.html">View all bookings</a></div>';
         el.innerHTML = h;
-    }).catch(function() { document.getElementById('recentBookings').innerHTML = '<p class="text-center text-muted text-sm" style="padding:20px">Unable to load</p>'; });
+    }
+
+    function loadRecentBookings() {
+        return API.bookings.getAll({ limit: 5 }).then(function(r) {
+            renderRecentBookings({ recentBookings: normalizeList(r) });
+        }).catch(function() { document.getElementById('recentBookings').innerHTML = '<p class="text-center text-muted text-sm" style="padding:20px">Unable to load</p>'; });
+    }
+
+    function loadDashboard() {
+        loadStats().then(renderRecentBookings);
+        loadRecentBookings();
+    }
+    loadDashboard();
+    startAutoRefresh(loadDashboard, 30000);
 
     API.prayer.getAll({ urgency: 'urgent', limit: 3 }).then(function(r) {
         var prayers = (r && r.data) ? (Array.isArray(r.data) ? r.data : r.data.prayers || []) : [];

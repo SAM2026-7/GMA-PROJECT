@@ -34,11 +34,26 @@ export function requireRole(...roles: UserRole[]) {
   };
 }
 
+export const STAFF_ROLES: UserRole[] = [
+  'super_admin', 'admin', 'pastor', 'counselor', 'prayer_coordinator',
+  'healing_minister', 'followup_officer', 'branch_admin', 'analytics_officer',
+];
+
+export function isStaffUser(req: AuthRequest): boolean {
+  return !!req.user && STAFF_ROLES.includes(req.user.role);
+}
+
+export async function resolveMemberId(req: AuthRequest): Promise<number | null> {
+  if (!req.user) return null;
+  const { query } = await import('../db/index');
+  const rows = await query('SELECT id FROM members WHERE user_id = ?', [req.user.id]);
+  return (rows[0] as any)?.id ?? null;
+}
+
 export function requireStaffOrAdmin(req: AuthRequest, res: Response, next: NextFunction) {
   if (!req.user) return res.status(401).json({ error: 'Authentication required' });
-  const staffRoles: UserRole[] = ['super_admin', 'admin', 'pastor', 'counselor', 'prayer_coordinator', 'healing_minister', 'followup_officer', 'branch_admin', 'analytics_officer'];
-  if (!staffRoles.includes(req.user.role)) {
-    return res.status(403).json({ error: 'Staff access required' });
+  if (!STAFF_ROLES.includes(req.user.role)) {
+    return res.status(403).json({ error: 'Insufficient permissions' });
   }
   next();
 }

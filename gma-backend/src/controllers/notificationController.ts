@@ -44,7 +44,7 @@ export async function markAsReadHandler(req: AuthRequest, res: Response) {
     if (isNaN(id)) {
       return res.status(400).json({ error: 'Invalid notification ID' });
     }
-    await markAsRead(id);
+    await markAsRead(id, req.user.id);
     return res.status(200).json({ success: true, message: 'Notification marked as read' });
   } catch (error) {
     return res.status(500).json({ error: error instanceof Error ? error.message : 'Failed to mark notification as read' });

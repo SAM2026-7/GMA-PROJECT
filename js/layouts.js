@@ -35,6 +35,7 @@ function renderAdminHeader(activePage) {
         '</div>' +
         '<div class="nav-actions">' +
         '<span style="color:rgba(255,255,255,0.7);font-size:0.9rem">Welcome, ' + escapeHtml(name) + '</span>' +
+        '<button class="btn btn-sm" id="adminLogoutBtn" style="background:rgba(255,255,255,0.12);color:#fff;border:1px solid rgba(255,255,255,0.25)" onclick="logout()">Logout</button>' +
         '<a href="/admin/dashboard.html" class="avatar" title="' + escapeHtml(name) + '" style="background:var(--gold);color:var(--royal-deep)">' + getInitials(name) + '</a>' +
         '</div></div></header>';
 }

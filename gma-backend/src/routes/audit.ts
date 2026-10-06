@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { authMiddleware, requireRole } from '../middleware/auth';
+import { authMiddleware, requireRole, requireStaffOrAdmin } from '../middleware/auth';
 import {
   getAuditLogsHandler,
   getRecentActivityHandler,
@@ -13,5 +13,5 @@ auditRouter.use(authMiddleware);
 
 auditRouter.get('/', requireRole('admin', 'super_admin'), getAuditLogsHandler);
 auditRouter.get('/recent', getRecentActivityHandler);
-auditRouter.get('/stats', getAuditStatsHandler);
+auditRouter.get('/stats', requireStaffOrAdmin, getAuditStatsHandler);
 auditRouter.post('/', createAuditLogHandler);

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { authMiddleware } from '../middleware/auth';
+import { authMiddleware, requireStaffOrAdmin } from '../middleware/auth';
 import {
   getMe,
   updateMe,
@@ -17,9 +17,10 @@ membersRouter.use(authMiddleware);
 
 membersRouter.get('/me', getMe);
 membersRouter.put('/me', updateMe);
-membersRouter.get('/search', searchMembersHandler);
-membersRouter.get('/', getAllMembersHandler);
-membersRouter.get('/:id', getMember);
-membersRouter.get('/:id/timeline', getMemberTimeline);
-membersRouter.put('/:id', updateMemberById);
-membersRouter.delete('/:id', deleteMember);
+
+membersRouter.get('/search', requireStaffOrAdmin, searchMembersHandler);
+membersRouter.get('/', requireStaffOrAdmin, getAllMembersHandler);
+membersRouter.get('/:id', requireStaffOrAdmin, getMember);
+membersRouter.get('/:id/timeline', requireStaffOrAdmin, getMemberTimeline);
+membersRouter.put('/:id', requireStaffOrAdmin, updateMemberById);
+membersRouter.delete('/:id', requireStaffOrAdmin, deleteMember);

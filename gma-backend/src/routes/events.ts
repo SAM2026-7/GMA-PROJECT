@@ -5,7 +5,7 @@ import { authMiddleware } from '../middleware/auth';
 export const eventsRouter = Router();
 
 eventsRouter.post('/', authMiddleware, createEventHandler);
-eventsRouter.get('/', authMiddleware, getAllEventsHandler);
+eventsRouter.get('/', getAllEventsHandler);
 eventsRouter.get('/upcoming', getUpcomingEventsHandler);
 eventsRouter.get('/:id', getEventByIdHandler);
 eventsRouter.put('/:id', authMiddleware, updateEventHandler);

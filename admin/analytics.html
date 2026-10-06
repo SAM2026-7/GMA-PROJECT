@@ -32,7 +32,7 @@
             '</div></div></div>';
 
         content += '<div class="stats-grid">';
-        content += '<div class="stat-card"><div class="stat-icon">\uD83D\uDC65</div><div class="stat-info"><span>Total Members</span><strong>' + (memberData.totalMembers || 0) + '</strong></div></div>';
+        content += '<div class="stat-card"><div class="stat-icon">\uD83D\uDC65</div><div class="stat-info"><span>Total Members</span><strong>' + (memberData.total || 0) + '</strong></div></div>';
         content += '<div class="stat-card"><div class="stat-icon">\uD83D\uDCC5</div><div class="stat-info"><span>Total Bookings</span><strong>' + (bookingAnalytics.total || 0) + '</strong></div></div>';
         content += '<div class="stat-card"><div class="stat-icon">\uD83D\uDCCB</div><div class="stat-info"><span>Active Cases</span><strong>' + (dashData.activeCases || 0) + '</strong></div></div>';
         content += '<div class="stat-card"><div class="stat-icon">\uD83D\uDE4F</div><div class="stat-info"><span>Prayer Requests</span><strong>' + (prayerAnalytics.totalRequests || 0) + '</strong></div></div>';
@@ -95,7 +95,7 @@
         if (allBookings.length === 0) return '<p class="text-center text-muted text-sm" style="padding:20px">No bookings found</p>';
         var html = '<table class="table"><thead><tr><th>ID</th><th>Name</th><th>Service</th><th>Date</th><th>Time</th><th>Status</th></tr></thead><tbody>';
         allBookings.forEach(function(b) {
-            html += '<tr><td><strong>#' + escapeHtml(String(b.id).substring(0, 6)) + '</strong></td><td>' + escapeHtml(b.memberName || b.member_name || 'Member') + '</td><td>' + escapeHtml(b.serviceType || b.service || '') + '</td><td>' + escapeHtml(b.date || b.bookingDate || '') + '</td><td>' + escapeHtml(b.time || b.bookingTime || '') + '</td><td>' + getStatusBadge(b.status) + '</td></tr>';
+            html += '<tr><td><strong>' + escapeHtml(b.bookingRef) + '</strong></td><td>' + escapeHtml(b.memberName) + '</td><td>' + escapeHtml(b.serviceType) + '</td><td>' + escapeHtml(b.date) + '</td><td>' + escapeHtml(b.time || '-') + '</td><td>' + getStatusBadge(b.status) + '</td></tr>';
         });
         html += '</tbody></table>';
         return html;
@@ -137,7 +137,7 @@
             memberData = (results[1] && results[1].data) ? results[1].data : {};
             bookingAnalytics = (results[2] && results[2].data) ? results[2].data : {};
             prayerAnalytics = (results[3] && results[3].data) ? results[3].data : {};
-            allBookings = (results[4] && results[4].data) ? (Array.isArray(results[4].data) ? results[4].data : results[4].data.bookings || []) : [];
+            allBookings = normalizeList(results[4]);
             allPrayers = (results[5] && results[5].data) ? (Array.isArray(results[5].data) ? results[5].data : results[5].data.prayers || []) : [];
             render();
         });
@@ -145,9 +145,9 @@
 
     window.exportBookingCSV = function() {
         if (allBookings.length === 0) { showToast('No bookings to export', 'error'); return; }
-        var rows = [['ID', 'Name', 'Service', 'Date', 'Time', 'Status']];
+        var rows = [['Booking ID', 'Name', 'Service', 'Type', 'Date', 'Time', 'Status', 'Received']];
         allBookings.forEach(function(b) {
-            rows.push([b.id, b.memberName || b.member_name || '', b.serviceType || b.service || '', b.date || b.bookingDate || '', b.time || b.bookingTime || '', b.status || '']);
+            rows.push([b.bookingRef, b.memberName, b.serviceType, b.sessionType, b.date, b.time, b.status, b.createdAt]);
         });
         var csv = rows.map(function(r) { return r.map(function(c) { return '"' + String(c).replace(/"/g, '""') + '"'; }).join(','); }).join('\n');
         var blob = new Blob([csv], { type: 'text/csv' });

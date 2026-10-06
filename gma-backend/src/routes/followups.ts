@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { authMiddleware } from '../middleware/auth';
+import { authMiddleware, requireStaffOrAdmin } from '../middleware/auth';
 import {
   createFollowupHandler,
   getAllFollowupsHandler,
@@ -14,7 +14,7 @@ import {
 
 export const followupsRouter = Router();
 
-followupsRouter.use(authMiddleware);
+followupsRouter.use(authMiddleware, requireStaffOrAdmin);
 
 followupsRouter.post('/', createFollowupHandler);
 followupsRouter.get('/', getAllFollowupsHandler);

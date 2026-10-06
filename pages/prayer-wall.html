@@ -109,10 +109,9 @@
         allPrayers = (r && r.data) ? (Array.isArray(r.data) ? r.data : r.data.prayers || r.data.requests || []) : [];
         renderPrayerCards('all');
     }).catch(function() {
-        API.prayer.getAll({}).then(function(r) {
-            allPrayers = (r && r.data) ? (Array.isArray(r.data) ? r.data : r.data.prayers || []) : [];
-            renderPrayerCards('all');
-        }).catch(function() { allPrayers = []; renderPrayerCards('all'); });
+        showToast('Unable to load the prayer wall. Please refresh.', 'error');
+        allPrayers = [];
+        renderPrayerCards('all');
     });
     </script>
 </body>

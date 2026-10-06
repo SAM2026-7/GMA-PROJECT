@@ -49,6 +49,10 @@ var API = {
     },
 
     staff: {
+        publicList: function(department) {
+            var qs = department ? '?department=' + encodeURIComponent(department) : '';
+            return apiRequest('/api/staff/public' + qs);
+        },
         getAll: function(params) {
             var qs = params ? '?' + new URLSearchParams(params).toString() : '';
             return apiRequest('/api/staff' + qs);
@@ -367,6 +371,28 @@ var API = {
         },
         log: function(data) {
             return apiRequest('/api/audit', { method: 'POST', body: JSON.stringify(data) });
+        }
+    },
+
+    donations: {
+        create: function(data) {
+            return apiRequest('/api/donations', { method: 'POST', body: JSON.stringify(data) });
+        },
+        getAll: function(params) {
+            var qs = params ? '?' + new URLSearchParams(params).toString() : '';
+            return apiRequest('/api/donations' + qs);
+        },
+        getById: function(id) {
+            return apiRequest('/api/donations/' + id);
+        },
+        update: function(id, data) {
+            return apiRequest('/api/donations/' + id, { method: 'PUT', body: JSON.stringify(data) });
+        },
+        delete: function(id) {
+            return apiRequest('/api/donations/' + id, { method: 'DELETE' });
+        },
+        stats: function() {
+            return apiRequest('/api/donations/stats');
         }
     },
 

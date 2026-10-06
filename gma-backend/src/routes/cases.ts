@@ -10,18 +10,18 @@ import {
   assignCaseHandler,
   escalateCaseHandler,
 } from '../controllers/caseController';
-import { authMiddleware } from '../middleware/auth';
+import { authMiddleware, requireStaffOrAdmin } from '../middleware/auth';
 
 export const casesRouter = Router();
 
 casesRouter.use(authMiddleware);
 
-casesRouter.post('/', createCaseHandler);
+casesRouter.post('/', requireStaffOrAdmin, createCaseHandler);
 casesRouter.get('/', getAllCasesHandler);
 casesRouter.get('/:id', getCaseHandler);
 casesRouter.get('/:id/sessions', getCaseSessionsHandler);
 casesRouter.get('/:id/timeline', getCaseTimelineHandler);
-casesRouter.put('/:id', updateCaseHandler);
-casesRouter.patch('/:id/assign', assignCaseHandler);
-casesRouter.patch('/:id/escalate', escalateCaseHandler);
-casesRouter.delete('/:id', deleteCaseHandler);
+casesRouter.put('/:id', requireStaffOrAdmin, updateCaseHandler);
+casesRouter.patch('/:id/assign', requireStaffOrAdmin, assignCaseHandler);
+casesRouter.patch('/:id/escalate', requireStaffOrAdmin, escalateCaseHandler);
+casesRouter.delete('/:id', requireStaffOrAdmin, deleteCaseHandler);

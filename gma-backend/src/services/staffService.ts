@@ -89,6 +89,24 @@ export async function getStaffByUserId(userId: number) {
   return results[0] || null;
 }
 
+export async function getPublicStaff(department?: string): Promise<any[]> {
+  const params: any[] = [];
+  let where = '';
+  if (department) {
+    where = 'WHERE s.department = ?';
+    params.push(department);
+  }
+  const results = await query(
+    `SELECT s.id, s.staff_id, s.position, s.department, s.specialization, s.bio, s.availability, u.name
+     FROM staff s
+     JOIN users u ON s.user_id = u.id
+     ${where}
+     ORDER BY s.id ASC`,
+    params
+  );
+  return results as any[];
+}
+
 export async function getAllStaff(filter: StaffFilter): Promise<PaginatedResult<any>> {
   const page = filter.page || 1;
   const limit = filter.limit || 20;
